@@ -1,0 +1,109 @@
+/* 💎 Background gradient động */
+body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.manage-users-page {
+    min-height: 100vh;
+    width: 100vw;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(-45deg, #ff6b6b, #f5af19, #1e3c72, #2a5298);
+    background-size: 400% 400%;
+    animation: gradientBG 6s ease infinite;
+    overflow: hidden;
+}
+
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* 💎 Container giữa màn hình rộng 85% */
+.manage-users-container {
+    background-color: white;
+    padding: 50px;
+    border-radius: 15px;
+    box-shadow: 0px 15px 50px rgba(0, 0, 0, 0.3);
+    width: 85%;
+    max-width: 1600px;
+    text-align: center;
+    min-height: 800px; 
+    display: flex;
+    flex-direction: column;
+}
+
+/* 💎 Bảng giữ nguyên chiều rộng nhưng giảm chiều cao các ô */
+.user-table {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    border-collapse: collapse;
+    width: 100%;
+    box-shadow: 0px 5px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* 🔹 Header bảng */
+.user-table th {
+    background: linear-gradient(135deg, #3498db, #2c3e50);
+    color: white;
+    font-weight: bold;
+    text-align: center;
+    padding: 12px; /* 🆕 Giảm padding */
+    font-size: 18px; /* 🆕 Giữ font chữ dễ đọc */
+}
+
+/* 🔹 Nội dung bảng */
+.user-table td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 8px; /* 🆕 Giảm padding để giảm chiều cao */
+    font-size: 18px; /* 🆕 Thu nhỏ chữ cho vừa */
+    height: 45px; /* 🆕 Giảm chiều cao dòng */
+}
+
+/* 🔹 Dòng chẵn có màu khác để dễ đọc */
+.user-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* 🔹 Hover hiệu ứng */
+.user-table tbody tr:hover {
+    background-color: #eef5ff;
+    transition: 0.2s;
+}
+
+/* 🔹 Fix lỗi màu nền không full */
+#root {
+    height: 100%;
+}
+/* 🔎 Ô tìm kiếm */
+.search-form {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.search-group {
+    position: relative;
+    width: 50%;
+    max-width: 400px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 40px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 25px;
+    transition: 0.3s;
+}
+
+.search-input:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+}

@@ -1,0 +1,287 @@
+/* Reset CSS */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+/* Định dạng tổng thể */
+body {
+  background-color: #f8f9fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* App container chính */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  padding: 20px;
+}
+
+/* Khu vực Upload PDF */
+.upload-container {
+  width: 100%;
+  max-width: 600px;
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* ✅ Nút mở chatbot */
+.chatbot-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #007bff;
+  color: white;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.chatbot-toggle-btn:hover {
+  background-color: #0056b3;
+}
+
+/* ✅ Chatbot container */
+.react-chatbot-kit-chat-container {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 400px;
+  height: 80vh;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ✅ Nút đóng chatbot */
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: red;
+  color: white;
+  border: none;
+  padding: 5px 8px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: darkred;
+}
+
+/* ✅ Phần hiển thị tin nhắn */
+.react-chatbot-kit-chat-message-container {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  background: #eef1f7;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  scroll-behavior: smooth;
+  height: calc(150% - 60px);
+  max-height: 70vh;
+}
+
+/* ✅ Ô nhập tin nhắn */
+.react-chatbot-kit-chat-input-container {
+  display: flex;
+  padding: 10px;
+  background: white;
+  border-top: 1px solid #ddd;
+  align-items: center;
+  width: 100%;
+}
+
+.react-chatbot-kit-chat-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.react-chatbot-kit-chat-btn-send {
+  background: #28a745;
+  color: white;
+  padding: 10px;
+  margin-left: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.react-chatbot-kit-chat-btn-send:hover {
+  background: #218838;
+}
+
+/* ✅ Tin nhắn */
+.react-chatbot-kit-chat-bot-message {
+  padding: 8px 12px;
+  margin: 5px 0;
+  border-radius: 5px;
+  max-width: 80%;
+  background: #e9ecef;
+  color: black;
+  align-self: flex-start;
+}
+
+.react-chatbot-kit-chat-user-message {
+  background: #007bff;
+  color: white;
+  align-self: flex-end;
+}
+
+/* ✅ Bảng danh sách PDF */
+.file-list-container {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 20px;
+}
+
+.file-list-table {
+  width: 100%;
+  min-width: 800px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.file-list-table th,
+.file-list-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.file-list-table th {
+  background: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+.file-list-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.file-list-table button {
+  padding: 6px 12px;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.file-list-table .btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.file-list-table .btn-danger:hover {
+  background: #b22222;
+}
+
+/* ✅ Cửa sổ xác nhận xóa */
+.delete-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  z-index: 1000;
+}
+
+.delete-modal .modal-content {
+  text-align: center;
+}
+
+.delete-modal .modal-content button {
+  margin: 5px;
+}
+
+
+.header-navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background-color: #007bff;
+  color: white;
+  padding: 10px 0;
+}
+
+.header-navbar .navbar-brand {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 50px;
+  font-weight: bold;
+  color: white !important;
+}
+
+.app-container {
+  padding-top: 60px; 
+}
+.header-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  font-weight: bold;
+  color: white !important;
+  text-align: center;
+}
+.header-user {
+  margin-left: auto;
+}
+
+/* 🔥 Nút toggle upload PDF */
+/* 🔥 Nút mở modal Upload PDF */
+.toggle-upload-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px auto;
+}
+
+.toggle-upload-btn:hover {
+  background: #0056b3;
+}
+
