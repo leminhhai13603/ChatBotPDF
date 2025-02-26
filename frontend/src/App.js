@@ -25,21 +25,25 @@ const App = () => {
         const fetchUser = async () => {
             const token = localStorage.getItem("token");
             if (!token) return;
-
+    
             try {
                 const response = await axios.get(`${API_BASE_URL}/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setUser(response.data);
+                
+                const userData = response.data;
+                userData.roles = Array.isArray(userData.roles) ? userData.roles : [userData.role]; // 🔥 Đảm bảo roles là mảng
+                
+                setUser(userData);
                 setIsAuthenticated(true);
             } catch {
                 setIsAuthenticated(false);
                 localStorage.removeItem("token");
             }
         };
-
+    
         fetchUser();
-    }, []);
+    }, [isAuthenticated]);
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -90,7 +94,7 @@ const App = () => {
                             <Route path="/change-password" element={<ChangePassword />} />
 
                             {/* ✅ Hiển thị Quản lý tài khoản nếu user là admin */}
-                            {user?.role === "admin" && <Route path="/manage-users" element={<ManageUsers />} />}
+                            {user?.roles?.includes("admin") && <Route path="/manage-users" element={<ManageUsers />} />}
 
                             {/* ✅ Trang không tồn tại → Redirect về trang chính */}
                             <Route path="*" element={<Navigate to="/" />} />
@@ -105,16 +109,19 @@ const App = () => {
                 </Routes>
             </div>
 
-            {/* ✅ Modal Upload PDF */}
+            {/* ✅ Modal Upload PDF - Truyền thêm user */}
             <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)} centered>
                 <Modal.Header closeButton>
                     <Modal.Title>📂 Tải lên PDF</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <UploadPDF onUploadSuccess={() => {
-                        setRefreshFiles((prev) => prev + 1);
-                        setShowUploadModal(false);
-                    }} />
+                    <UploadPDF 
+                        user={user}  
+                        onUploadSuccess={() => {
+                            setRefreshFiles((prev) => prev + 1);
+                            setShowUploadModal(false);
+                        }} 
+                    />
                 </Modal.Body>
             </Modal>
         </Router>

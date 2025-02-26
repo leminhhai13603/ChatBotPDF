@@ -14,11 +14,16 @@ router.put("/update-profile", authenticateToken, authController.updateProfile);
 // ✅ Đổi mật khẩu người dùng
 router.put("/change-password", authenticateToken, authController.changePassword);
 
+// ✅ Lấy roles của user 
+router.get("/user-roles/:userId", authenticateToken, authController.getUserRoles);
+
 // ✅ --- Quản lý tài khoản (Chỉ Admin) ---
 router.use(authenticateToken, authorizeAdmin);
 
 // 🔹 Lấy danh sách tài khoản
 router.get("/users", authController.getAllUsers);
+
+router.get("/roles", authController.getAllRoles);
 
 // 🔹 Thêm tài khoản mới
 router.post("/users", authController.createUser);

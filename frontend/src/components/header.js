@@ -18,9 +18,6 @@ const Header = ({ onLogout }) => {
                 const response = await axios.get(`${API_BASE_URL}/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-    
-                console.log("User Info:", response.data); 
-    
                 setUser(response.data);
             } catch (error) {
                 console.error("Lỗi khi lấy thông tin user:", error);
@@ -48,12 +45,11 @@ const Header = ({ onLogout }) => {
                         <Dropdown.Item onClick={() => navigate("/change-password")}>
                             <FaLock /> Đổi mật khẩu
                         </Dropdown.Item>
-                        {user?.role === "admin" && (
+                        {user?.roles?.includes("admin") && (
                             <Dropdown.Item onClick={() => navigate("/manage-users")}>
                                 <FaUsersCog /> Quản lý tài khoản
                             </Dropdown.Item>
                         )}
-
                         <Dropdown.Divider />
                         <Dropdown.Item onClick={onLogout} className="text-danger">
                             <FaSignOutAlt /> Đăng Xuất

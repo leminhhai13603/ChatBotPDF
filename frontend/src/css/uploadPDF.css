@@ -1,0 +1,31 @@
+.upload-container {
+  max-width: 500px;
+  margin: 20px auto;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: white;
+}
+
+.form-label {
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.alert {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.btn-primary {
+  margin-top: 10px;
+}
+
+.btn-primary:disabled {
+  cursor: not-allowed;
+}
+
+.spinner-border {
+  width: 1rem;
+  height: 1rem;
+}

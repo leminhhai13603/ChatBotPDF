@@ -15,18 +15,34 @@ const Login = ({ setIsAuthenticated, setUser }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
-
+    
         try {
             const response = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
-            localStorage.setItem("token", response.data.token);
-            setUser(response.data.user);
-            setIsAuthenticated(true);
+            console.log("✅ Login response:", response.data); // Debug log
 
+            // Lưu token
+            localStorage.setItem("token", response.data.token);
+            
+            // Xử lý thông tin user
+            const userData = response.data.user;
+            
+            // Lưu user ID
+            localStorage.setItem("userId", userData.id);
+            console.log("👤 Đã lưu userId:", userData.id); // Debug log
+            
+            // Đảm bảo roles là mảng
+            userData.roles = Array.isArray(userData.roles) ? userData.roles : [userData.role];
+            console.log("🔑 User roles:", userData.roles); // Debug log
+            
+            // Set user state và chuyển hướng
+            setUser(userData); 
+            setIsAuthenticated(true);
             navigate("/");
         } catch (err) {
+            console.error("❌ Lỗi đăng nhập:", err);
             setError(err.response?.data?.error || "Sai tên đăng nhập hoặc mật khẩu.");
         }
-    };
+    };    
 
     return (
         <div className="login-page">

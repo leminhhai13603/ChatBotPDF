@@ -1,19 +1,26 @@
 const jwt = require("jsonwebtoken");
 
 const authenticateToken = (req, res, next) => {
-    const token = req.header("Authorization")?.split(" ")[1];
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
     
     if (!token) {
-        return res.status(401).json({ error: "Không có token, vui lòng đăng nhập" });
+        return res.status(401).json({ error: "Không có token xác thực" });
     }
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded; 
+    
+    jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: "Token không hợp lệ" });
+        }
+        
+        // Đảm bảo user.roles luôn là một mảng
+        req.user = {
+            ...user,
+            roles: user.roles || []
+        };
+        
         next();
-    } catch (error) {
-        res.status(403).json({ error: "Token không hợp lệ hoặc đã hết hạn!" });
-    }
+    });
 };
 
 module.exports = authenticateToken;

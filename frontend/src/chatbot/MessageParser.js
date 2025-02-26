@@ -11,9 +11,9 @@ class MessageParser {
       const lowerCaseMessage = message.trim().toLowerCase();
   
       if (lowerCaseMessage.includes("help") || lowerCaseMessage.includes("hướng dẫn")) {
-        this.actionProvider.handleUserMessage("Làm thế nào để sử dụng chatbot?");
+        this.actionProvider.handleHelpRequest();
       } else {
-        this.actionProvider.handleUserMessage(lowerCaseMessage);
+        this.actionProvider.handleUserMessage(message);
       }
     }
   }

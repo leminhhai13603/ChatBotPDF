@@ -8,40 +8,62 @@
 
 
 .file-layout {
-    display: flex;
-    width: 100%;
-    height: 100%;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr; 
+    gap: 2rem;
+    padding: 1rem;
+    height: calc(100vh - 80px); 
 }
 
 .file-preview {
-    flex: 1; 
-    min-width: 300px;
-    height: 100%; 
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    overflow-y: auto;  
-}
-
-.file-preview h3 {
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-
-.file-content {
-    white-space: pre-wrap; 
-    word-wrap: break-word;
-    font-size: 16px;
-    padding: 10px;
-    background: #f8f9fa;
-    border: 1px solid #ddd;
+    background: #fff;
+    padding: 1rem;
     border-radius: 8px;
-    max-height: 700px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    height: calc(100vh - 150px); 
     overflow-y: auto; 
 }
 
+.file-preview h3 {
+    background: #fff;
+    padding: 0.5rem 0;
+    margin: 0;
+    border-bottom: 1px solid #eee;
+    font-size: 1.2rem;
+}
+
+.file-info {
+    display: block;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.3rem;
+    font-weight: normal;
+}
+
+.file-content {
+    margin-top: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    padding: 0.5rem;
+}
+
+.file-preview::-webkit-scrollbar {
+    width: 8px;
+}
+
+.file-preview::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.file-preview::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.file-preview::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
 
 .no-preview {
     font-style: italic;
@@ -49,37 +71,48 @@
 }
 
 .file-list-container {
-    flex: 2; 
-    height: 100%;
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    overflow-y: auto;  
+    background: #fff;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    height: fit-content; /* Bỏ scroll, để container tự động mở rộng */
 }
 
 
 .search-bar {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
+    flex: 1;
 }
 
 .file-list-table {
     width: 100%;
     border-collapse: collapse;
-}
-
-.file-list-table th, .file-list-table td {
-    padding: 10px;
-    text-align: left;
+    margin-top: 1rem;
 }
 
 .file-list-table th {
-    background: #007bff;
-    color: white;
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid #eee;
+    font-weight: 600;
+}
+
+.file-list-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+}
+
+.file-list-table th:first-child {
+    width: 40%; /* Tăng độ rộng cột tên file */
+}
+
+.file-list-table th:nth-child(2),
+.file-list-table th:nth-child(3) {
+    width: 20%;
+}
+
+.file-list-table th:last-child {
+    width: 50px; /* Thu nhỏ cột hành động */
+    text-align: center;
 }
 
 .file-list-table tr:hover {
@@ -146,4 +179,67 @@
 
 .file-name:hover {
     color: #0056b3;
+}
+
+.filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.category-select {
+    width: 150px; /* Thu nhỏ độ rộng dropdown */
+}
+
+/* Làm gọn dropdown options */
+.category-select option {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+/* Các style khác giữ nguyên */
+.file-name {
+    display: inline-block;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-list-table td {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.action-column {
+    text-align: center;
+    padding: 0 !important;
+    width: 50px;
+}
+
+.btn-delete {
+    padding: 4px 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+
+.btn-delete:hover {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+/* Bỏ các styles liên quan đến scroll */
+.file-list-container {
+    overflow: visible;
+}
+
+.file-list-table-wrapper {
+    overflow: visible;
 }
