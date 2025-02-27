@@ -12,6 +12,8 @@
 
 .react-chatbot-kit-chat-message-container {
   height: 400px;
+  padding-bottom: 60px;
+  overflow-y: auto;
 }
 
 .react-chatbot-kit-chat-input {
@@ -20,6 +22,10 @@
 
 .react-chatbot-kit-chat-input-form {
   padding: 10px;
+  position: sticky;
+  bottom: 0;
+  background: white;
+  z-index: 100;
 }
 
 .react-chatbot-kit-chat-input::placeholder {
@@ -47,6 +53,9 @@
   color: #666;
   margin-bottom: 5px;
   font-weight: bold;
+  white-space: nowrap;
+  overflow: visible;
+  display: inline-block;
 }
 
 .database-result, .ai-result {

@@ -169,7 +169,7 @@ exports.searchPDF = async (req, res) => {
                     const prompt = `
                     Dựa vào các đoạn văn bản sau đây, hãy trả lời câu hỏi: "${query}"
                     
-                    ${searchResults.map(result => `Đoạn văn bản từ "${result.pdf_name}":\n${result.content}`).join('\n\n')}
+                    ${searchResults.map(result => result.content).join('\n\n')}
                     
                     Trả lời bằng tiếng Việt, ngắn gọn, đầy đủ và chính xác. Nếu không có thông tin liên quan, hãy nói "Tôi không tìm thấy thông tin liên quan trong tài liệu."
                     `;
@@ -177,7 +177,7 @@ exports.searchPDF = async (req, res) => {
                     // Gọi Groq AI với prompt
                     const answer = await groqService.askGroq(prompt);
                     
-                    // Lưu lịch sử hội thoại (không thêm nguồn tài liệu)
+                    // Lưu lịch sử hội thoại
                     await chatModel.saveChatHistory(userId, query, answer, "database");
                     
                     return res.json({
@@ -228,7 +228,7 @@ exports.searchPDF = async (req, res) => {
                 const prompt = `
                 Dựa vào các đoạn văn bản sau đây, hãy trả lời câu hỏi: "${query}"
                 
-                ${searchResults.map(result => `Đoạn văn bản từ "${result.pdf_name}":\n${result.content}`).join('\n\n')}
+                ${searchResults.map(result => result.content).join('\n\n')}
                 
                 Trả lời bằng tiếng Việt, ngắn gọn, đầy đủ và chính xác. Nếu không có thông tin liên quan, hãy nói "Tôi không tìm thấy thông tin liên quan trong tài liệu."
                 `;
@@ -236,7 +236,7 @@ exports.searchPDF = async (req, res) => {
                 // Gọi Groq AI với prompt
                 const answer = await groqService.askGroq(prompt);
                 
-                // Lưu lịch sử hội thoại (không thêm nguồn tài liệu)
+                // Lưu lịch sử hội thoại
                 await chatModel.saveChatHistory(userId, query, answer, "database");
                 
                 return res.json({
