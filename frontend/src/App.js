@@ -10,6 +10,7 @@ import Header from "./components/header";
 import Profile from "./pages/profile";
 import ChangePassword from "./pages/changePassword";
 import ManageUsers from "./pages/manageUser";
+import ManageCategories from "./pages/manageCategory";
 import "./css/App.css";
 import axios from "axios";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; 
@@ -20,11 +21,15 @@ const App = () => {
     const [user, setUser] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchUser = async () => {
             const token = localStorage.getItem("token");
-            if (!token) return;
+            if (!token) {
+                setIsLoading(false);
+                return;
+            }
     
             try {
                 const response = await axios.get(`${API_BASE_URL}/auth/me`, {
@@ -32,24 +37,30 @@ const App = () => {
                 });
                 
                 const userData = response.data;
-                userData.roles = Array.isArray(userData.roles) ? userData.roles : [userData.role]; // 🔥 Đảm bảo roles là mảng
+                userData.roles = Array.isArray(userData.roles) ? userData.roles : [userData.role];
                 
                 setUser(userData);
                 setIsAuthenticated(true);
             } catch {
                 setIsAuthenticated(false);
                 localStorage.removeItem("token");
+            } finally {
+                setIsLoading(false);
             }
         };
     
         fetchUser();
-    }, [isAuthenticated]);
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem("token");
         setIsAuthenticated(false);
         setUser(null);
     };
+
+    if (isLoading) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <Router>
@@ -59,24 +70,20 @@ const App = () => {
                 <Routes>
                     {isAuthenticated ? (
                         <>
-                            {/* 🔹 Trang chính */}
                             <Route
                                 path="/"
                                 element={
                                     <div>
-                                        {/* ✅ Nút mở modal Upload PDF */}
                                         <Button className="toggle-upload-btn" onClick={() => setShowUploadModal(true)}>
                                             <FaUpload size={20} /> Tải lên PDF
                                         </Button>
 
                                         <FileList refresh={refreshFiles} />
 
-                                        {/* ✅ Nút mở chatbot */}
                                         <button className="chatbot-toggle-btn" onClick={() => setShowChatbot(!showChatbot)}>
                                             <FaRobot size={24} />
                                         </button>
 
-                                        {/* ✅ Chatbot hiển thị khi bật */}
                                         {showChatbot && (
                                             <div className="chatbot-container">
                                                 <button className="close-btn" onClick={() => setShowChatbot(false)}>✖</button>
@@ -87,21 +94,18 @@ const App = () => {
                                 }
                             />
 
-                            {/* ✅ Trang Đổi thông tin cá nhân */}
-                            <Route path="/profile" element={<Profile />} />
-
-                            {/* ✅ Trang Đổi mật khẩu */}
-                            <Route path="/change-password" element={<ChangePassword />} />
-
-                            {/* ✅ Hiển thị Quản lý tài khoản nếu user là admin */}
-                            {user?.roles?.includes("admin") && <Route path="/manage-users" element={<ManageUsers />} />}
-
-                            {/* ✅ Trang không tồn tại → Redirect về trang chính */}
+                            <Route path="/profile" element={<Profile user={user} setUser={setUser} />} />
+                            <Route path="/change-password" element={<ChangePassword user={user} />} />
+                            {user?.roles?.includes("admin") && (
+                                <>
+                                    <Route path="/manage-users" element={<ManageUsers user={user} />} />
+                                    <Route path="/manage-categories" element={<ManageCategories />} />
+                                </>
+                            )}
                             <Route path="*" element={<Navigate to="/" />} />
                         </>
                     ) : (
                         <>
-                            {/* ✅ Nếu chưa đăng nhập, chỉ hiển thị trang Login */}
                             <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} setUser={setUser} />} />
                             <Route path="*" element={<Navigate to="/login" />} />
                         </>
@@ -109,7 +113,6 @@ const App = () => {
                 </Routes>
             </div>
 
-            {/* ✅ Modal Upload PDF - Truyền thêm user */}
             <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)} centered>
                 <Modal.Header closeButton>
                     <Modal.Title>📂 Tải lên PDF</Modal.Title>

@@ -6,7 +6,6 @@
   font-family: Arial, sans-serif;
 }
 
-/* Định dạng tổng thể */
 body {
   background-color: #f8f9fa;
   display: flex;
@@ -15,7 +14,6 @@ body {
   min-height: 100vh;
 }
 
-/* App container chính */
 .app-container {
   display: flex;
   flex-direction: column;
@@ -25,7 +23,6 @@ body {
   padding: 20px;
 }
 
-/* Khu vực Upload PDF */
 .upload-container {
   width: 100%;
   max-width: 600px;
@@ -36,7 +33,6 @@ body {
   text-align: center;
 }
 
-/* ✅ Nút mở chatbot */
 .chatbot-toggle-btn {
   position: fixed;
   bottom: 20px;
@@ -58,7 +54,6 @@ body {
   background-color: #0056b3;
 }
 
-/* ✅ Chatbot container */
 .react-chatbot-kit-chat-container {
   position: fixed;
   bottom: 80px;
@@ -73,7 +68,6 @@ body {
   overflow: hidden;
 }
 
-/* ✅ Nút đóng chatbot */
 .close-btn {
   position: absolute;
   top: 10px;
@@ -94,7 +88,6 @@ body {
   background: darkred;
 }
 
-/* ✅ Phần hiển thị tin nhắn */
 .react-chatbot-kit-chat-message-container {
   flex: 1;
   padding: 10px;
@@ -108,7 +101,6 @@ body {
   max-height: 70vh;
 }
 
-/* ✅ Ô nhập tin nhắn */
 .react-chatbot-kit-chat-input-container {
   display: flex;
   padding: 10px;
@@ -139,7 +131,6 @@ body {
   background: #218838;
 }
 
-/* ✅ Tin nhắn */
 .react-chatbot-kit-chat-bot-message {
   padding: 8px 12px;
   margin: 5px 0;
@@ -156,7 +147,6 @@ body {
   align-self: flex-end;
 }
 
-/* ✅ Bảng danh sách PDF */
 .file-list-container {
   width: 100%;
   max-width: 900px;
@@ -205,7 +195,6 @@ body {
   background: #b22222;
 }
 
-/* ✅ Cửa sổ xác nhận xóa */
 .delete-modal {
   position: fixed;
   top: 50%;
@@ -263,8 +252,6 @@ body {
   margin-left: auto;
 }
 
-/* 🔥 Nút toggle upload PDF */
-/* 🔥 Nút mở modal Upload PDF */
 .toggle-upload-btn {
   background: #007bff;
   color: white;
@@ -285,3 +272,14 @@ body {
   background: #0056b3;
 }
 
+.header-navbar .btn-outline-primary {
+  padding: 0.375rem 0.75rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.header-navbar .btn-outline-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}

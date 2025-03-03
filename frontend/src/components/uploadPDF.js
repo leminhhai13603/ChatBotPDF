@@ -62,11 +62,10 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
     try {
       const formData = new FormData();
       
-      // Tạo blob mới với tên file đã được encode
       const fileBlob = new Blob([file], { type: file.type });
       formData.append("pdf", fileBlob, encodeURIComponent(file.name));
       
-      formData.append("originalFileName", file.name); // Thêm tên file gốc
+      formData.append("originalFileName", file.name); 
       formData.append("groupId", selectedRole);
 
       console.log("📤 Uploading file:", {

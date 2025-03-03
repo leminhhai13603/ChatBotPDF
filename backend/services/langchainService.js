@@ -8,9 +8,9 @@ const { Document } = require("langchain/document");
 const { BufferMemory, ConversationSummaryMemory } = require("langchain/memory");
 const { PGVectorStore } = require("@langchain/community/vectorstores/pgvector");
 const { Pool } = require('pg');
+const userModel = require("../models/userModel");
 require("dotenv").config();
 
-// Tạo instance của ChatOpenAI
 const llm = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY,
   modelName: "gpt-3.5-turbo-16k",
@@ -18,21 +18,17 @@ const llm = new ChatOpenAI({
   maxTokens: 4000,
 });
 
-// Tạo embeddings
 const embeddings = new OpenAIEmbeddings({
   openAIApiKey: process.env.OPENAI_API_KEY,
-  batchSize: 512, // Tăng batch size để xử lý nhanh hơn
+  batchSize: 512, 
 });
 
-// Kết nối PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Lưu trữ lịch sử hội thoại theo userId
 const conversationMemories = {};
 
-// Hàm tạo hoặc lấy memory cho user
 const getMemoryForUser = (userId) => {
   if (!conversationMemories[userId]) {
     conversationMemories[userId] = new ConversationSummaryMemory({
@@ -47,46 +43,32 @@ const getMemoryForUser = (userId) => {
   return conversationMemories[userId];
 };
 
-// Hàm tạo PGVectorStore từ PostgreSQL
 const createPGVectorStore = async (userId, userRoles = []) => {
   try {
-    // Kiểm tra quyền admin
-    const isAdmin = Array.isArray(userRoles) && userRoles.some(role => role.toLowerCase() === 'admin');
+    const isAdmin = await userModel.isUserAdmin(userRoles);
     
-    // Tạo filter dựa trên quyền
     let filter = {};
     if (!isAdmin) {
-      // Lấy danh sách role_id của user
-      const client = await pool.connect();
-      try {
-        const roleQuery = `SELECT role_id FROM user_roles WHERE user_id = $1`;
-        const roleResult = await client.query(roleQuery, [userId]);
-        const roleIds = roleResult.rows.map(row => row.role_id);
-        
-        if (roleIds.length === 0) {
-          console.log("⚠️ User không có quyền truy cập tài liệu nào.");
-          return null;
-        }
-        
-        // Tạo filter dựa trên role_id
-        filter = {
-          where: {
-            metadata: {
-              group_id: {
-                in: roleIds
-              }
+      const roleIds = await userModel.getUserRoleIds(userId);
+      
+      if (roleIds.length === 0) {
+        console.log("⚠️ User không có quyền truy cập tài liệu nào.");
+        return null;
+      }
+      
+      filter = {
+        where: {
+          metadata: {
+            group_id: {
+              in: roleIds
             }
           }
-        };
-      } finally {
-        client.release();
-      }
+        }
+      };
     }
     
-    // Tạo connection string cho PG
     const connectionString = process.env.DATABASE_URL;
     
-    // Tạo PGVector store với similarity search
     return new PGVectorStore(embeddings, {
       postgresConnectionOptions: {
         connectionString: connectionString,
@@ -99,7 +81,7 @@ const createPGVectorStore = async (userId, userRoles = []) => {
         metadataColumn: "metadata",
       },
       filter: filter,
-      similarity_threshold: 0.1, // Giảm ngưỡng tương đồng xuống 0.1
+      similarity_threshold: 0.1, 
     });
   } catch (error) {
     console.error("❌ Lỗi khi tạo PGVectorStore:", error);
@@ -107,12 +89,18 @@ const createPGVectorStore = async (userId, userRoles = []) => {
   }
 };
 
-// Hàm tạo conversation chain
-const createConversationChain = (userId) => {
+const createConversationChain = async (userId) => {
   const memory = getMemoryForUser(userId);
   
+  const user = await userModel.getUserById(userId);
+  const userRoles = user.roles;
+  
   const promptTemplate = `
-  Bạn là trợ lý AI thông minh, được tạo ra để hỗ trợ người dùng.
+  Bạn là trợ lý AI thông minh, được tạo ra để hỗ trợ ${user.fullname || 'người dùng'}.
+  
+  Thông tin người dùng:
+  - Tên: ${user.fullname || 'Chưa cập nhật'}
+  - Vai trò: ${userRoles.join(', ')}
   
   Lịch sử hội thoại:
   {chat_history}
@@ -120,6 +108,7 @@ const createConversationChain = (userId) => {
   Câu hỏi hiện tại: {question}
   
   Hãy trả lời câu hỏi một cách đầy đủ và chính xác.
+  ${userRoles.includes('admin') ? 'Bạn có thể cung cấp thông tin chi tiết hơn vì người dùng có quyền admin.' : ''}
   Nếu bạn không biết câu trả lời, hãy nói "Tôi không có đủ thông tin để trả lời câu hỏi này".
   `;
   
@@ -133,24 +122,31 @@ const createConversationChain = (userId) => {
   });
 };
 
-// Hàm tạo retrieval chain với memory
 const createRetrievalChain = async (userId, query, userRoles) => {
   try {
-    // Tạo PGVectorStore
     const vectorStore = await createPGVectorStore(userId, userRoles);
+    if (!vectorStore) {
+      throw new Error("Không thể tạo vectorStore cho người dùng này");
+    }
     
-    // Tạo retriever với k cao hơn
     const retriever = vectorStore.asRetriever({
       searchType: "similarity",
-      k: 8, // Tăng từ 5 lên 8
+      k: 8,
+      searchKwargs: {
+        fetchK: 20,
+        lambda_mult: 0.5,
+      }
     });
     
-    // Lấy memory cho user
     const memory = getMemoryForUser(userId);
+    const user = await userModel.getUserById(userId);
     
-    // Tạo prompt template
     const promptTemplate = `
-    Bạn là trợ lý AI thông minh, được tạo ra để hỗ trợ người dùng tìm kiếm và trả lời câu hỏi từ tài liệu.
+    Bạn là trợ lý AI thông minh, được tạo ra để hỗ trợ ${user.fullname || 'người dùng'} tìm kiếm và trả lời câu hỏi từ tài liệu.
+    
+    Thông tin người dùng:
+    - Tên: ${user.fullname || 'Chưa cập nhật'}
+    - Vai trò: ${user.roles.join(', ')}
     
     Lịch sử hội thoại:
     {chat_history}
@@ -161,12 +157,12 @@ const createRetrievalChain = async (userId, query, userRoles) => {
     {context}
     
     Dựa vào thông tin từ tài liệu và lịch sử hội thoại, hãy trả lời câu hỏi một cách đầy đủ và chính xác.
+    ${user.roles.includes('admin') ? 'Bạn có thể cung cấp thông tin chi tiết và kỹ thuật hơn vì người dùng có quyền admin.' : 'Hãy giữ câu trả lời ở mức độ phù hợp với vai trò của người dùng.'}
     Nếu thông tin từ tài liệu không đủ để trả lời, hãy nói "Tôi không tìm thấy đủ thông tin trong tài liệu để trả lời câu hỏi này".
     Trả lời ngắn gọn, đầy đủ và chính xác.
     Nếu có thể, hãy trích dẫn nguồn tài liệu trong câu trả lời.
     `;
     
-    // Tạo chain
     const chain = ConversationalRetrievalQAChain.fromLLM(
       llm,
       retriever,
@@ -186,7 +182,6 @@ const createRetrievalChain = async (userId, query, userRoles) => {
   }
 };
 
-// Hàm truy vấn retrieval chain
 const queryRetrievalChain = async (userId, query, userRoles) => {
   try {
     const chain = await createRetrievalChain(userId, query, userRoles);
@@ -194,14 +189,12 @@ const queryRetrievalChain = async (userId, query, userRoles) => {
     const result = await chain.call({
       question: query,
     });
-    
-    // Format kết quả với nguồn tài liệu
+
     let formattedResult = result.text;
     
     if (result.sourceDocuments && result.sourceDocuments.length > 0) {
       formattedResult += "\n\n**Nguồn tài liệu:**\n";
       
-      // Tạo danh sách nguồn tài liệu không trùng lặp
       const uniqueSources = {};
       
       result.sourceDocuments.forEach((doc, index) => {
@@ -218,7 +211,6 @@ const queryRetrievalChain = async (userId, query, userRoles) => {
         }
       });
       
-      // Hiển thị nguồn tài liệu
       Object.keys(uniqueSources).forEach((pdfId, index) => {
         const source = uniqueSources[pdfId];
         formattedResult += `\n${index + 1}. ${source.name} (${source.count} đoạn)`;
@@ -232,7 +224,6 @@ const queryRetrievalChain = async (userId, query, userRoles) => {
   }
 };
 
-// Hàm truy vấn conversation chain
 const queryConversation = async (userId, query) => {
   try {
     const chain = createConversationChain(userId);
@@ -248,7 +239,6 @@ const queryConversation = async (userId, query) => {
   }
 };
 
-// Hàm xóa lịch sử hội thoại của user
 const clearMemoryForUser = (userId) => {
   if (conversationMemories[userId]) {
     delete conversationMemories[userId];

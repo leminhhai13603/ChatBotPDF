@@ -10,7 +10,6 @@ const SearchPDF = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    // Kiểm tra xem người dùng đã đăng nhập chưa
     const token = localStorage.getItem("token");
     setIsAuthenticated(!!token);
   }, []);

@@ -196,83 +196,111 @@ exports.getVectorSearchResultWithRoles = async (queryEmbedding, userId, userRole
             return null;
         }
 
-        // Giảm ngưỡng tương đồng để tìm được nhiều kết quả hơn
-        const similarity_threshold = 0.1; // Giảm từ 0.2 xuống 0.15
         const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
         
-        let searchQuery;
-        
-        if (isAdmin) {
-            // Admin có thể tìm kiếm trong tất cả tài liệu
-            searchQuery = `
+        // Tối ưu query với CTE (Common Table Expression)
+        let searchQuery = `
+            WITH ranked_chunks AS (
                 SELECT 
-                    pc.content, 
-                    pf.pdf_name, 
-                    pf.id, 
+                    pc.content,
                     pc.section_title,
                     pc.is_title_chunk,
                     pc.keywords,
-                    (1 - (pc.embedding <-> $1::vector)) AS similarity
+                    pf.pdf_name,
+                    pf.id as pdf_id,
+                    (1 - (pc.embedding <-> $1::vector)) AS similarity,
+                    -- Tính điểm ưu tiên
+                    CASE 
+                        WHEN pc.is_title_chunk THEN 0.3
+                        WHEN pc.section_title IS NOT NULL THEN 0.2
+                        WHEN array_length(pc.keywords, 1) > 0 THEN 0.1
+                        ELSE 0
+                    END as priority_score
                 FROM pdf_chunks pc
                 JOIN pdf_files pf ON pc.pdf_id = pf.id
+                ${!isAdmin ? 'WHERE pf.group_id = ANY($3)' : ''}
+                -- Lọc sơ bộ để giảm số lượng rows cần xử lý
                 WHERE (1 - (pc.embedding <-> $1::vector)) > $2
-                ORDER BY 
-                    pc.is_title_chunk DESC,
-                    similarity DESC
-                LIMIT 8; 
-            `;
-            
-            const result = await client.query(searchQuery, [JSON.stringify(queryEmbedding), similarity_threshold]);
-            
-            if (result.rows.length === 0) {
-                console.log("⚠️ Admin không tìm thấy kết quả phù hợp.");
-                return null;
-            }
-            
-            console.log(`✅ Admin tìm thấy ${result.rows.length} kết quả phù hợp.`);
-            
-            return result.rows;
-        } else {
-            // Lấy danh sách role_id của user
+            )
+            SELECT 
+                content,
+                pdf_name,
+                pdf_id,
+                section_title,
+                is_title_chunk,
+                keywords,
+                similarity,
+                -- Tính điểm tổng hợp
+                (similarity + priority_score) as final_score
+            FROM ranked_chunks
+            ORDER BY final_score DESC
+            LIMIT 8;
+        `;
+
+        const similarity_threshold = 0.1;
+        const params = [JSON.stringify(queryEmbedding), similarity_threshold];
+
+        if (!isAdmin) {
             const roleQuery = `SELECT role_id FROM user_roles WHERE user_id = $1`;
             const roleResult = await client.query(roleQuery, [userId]);
             const roleIds = roleResult.rows.map(row => row.role_id);
-            
-            if (roleIds.length === 0) {
-                console.log("⚠️ User không có quyền truy cập tài liệu nào.");
-                return null;
-            }
-            
-            searchQuery = `
+            params.push(roleIds);
+        }
+
+        const result = await client.query(searchQuery, params);
+
+        if (result.rows.length === 0) {
+            // Thử tìm kiếm với ngưỡng thấp hơn
+            const fallbackQuery = `
                 SELECT 
-                    pc.content, 
-                    pf.pdf_name, 
-                    pf.id, 
+                    pc.content,
+                    pf.pdf_name,
+                    pf.id as pdf_id,
                     pc.section_title,
                     pc.is_title_chunk,
                     pc.keywords,
                     (1 - (pc.embedding <-> $1::vector)) AS similarity
                 FROM pdf_chunks pc
                 JOIN pdf_files pf ON pc.pdf_id = pf.id
-                WHERE (1 - (pc.embedding <-> $1::vector)) > $2
-                AND pf.group_id = ANY($3)
-                ORDER BY 
-                    pc.is_title_chunk DESC, -- Ưu tiên các chunk chứa tiêu đề
-                    similarity DESC
-                LIMIT 8; -- Tăng từ 5 lên 8
+                ${!isAdmin ? 'WHERE pf.group_id = ANY($3)' : ''}
+                ORDER BY pc.embedding <-> $1::vector
+                LIMIT 3;
             `;
-            
-            const result = await client.query(searchQuery, [JSON.stringify(queryEmbedding), similarity_threshold, roleIds]);
-            
-            if (result.rows.length === 0) {
-                console.log(`⚠️ User ${userId} không tìm thấy kết quả phù hợp.`);
-                return null;
+
+            const fallbackResult = await client.query(fallbackQuery, params);
+            if (fallbackResult.rows.length > 0) {
+                console.log("⚠️ Sử dụng kết quả fallback với độ tương đồng thấp hơn");
+                return fallbackResult.rows;
             }
-            
-            console.log(`✅ User ${userId} tìm thấy ${result.rows.length} kết quả phù hợp.`);
-            
-            return result.rows;
+            return null;
         }
+
+        // Gom nhóm các đoạn liên quan
+        const groupedResults = result.rows.reduce((acc, row) => {
+            const existingGroup = acc.find(g => g.pdf_id === row.pdf_id);
+            if (existingGroup) {
+                existingGroup.chunks.push({
+                    content: row.content,
+                    similarity: row.similarity,
+                    section_title: row.section_title
+                });
+            } else {
+                acc.push({
+                    pdf_id: row.pdf_id,
+                    pdf_name: row.pdf_name,
+                    chunks: [{
+                        content: row.content,
+                        similarity: row.similarity,
+                        section_title: row.section_title
+                    }]
+                });
+            }
+            return acc;
+        }, []);
+
+        console.log(`✅ Tìm thấy ${groupedResults.length} tài liệu phù hợp`);
+        return groupedResults;
+
     } catch (error) {
         console.error("❌ Lỗi khi tìm kiếm vector:", error);
         return null;

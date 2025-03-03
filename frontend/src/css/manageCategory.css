@@ -1,10 +1,4 @@
-body, html {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-}
-
-.manage-users-page {
+.manage-categories-page {
     min-height: 100vh;
     width: 100vw;
     display: flex;
@@ -22,7 +16,7 @@ body, html {
     100% { background-position: 0% 50%; }
 }
 
-.manage-users-container {
+.manage-categories-container {
     background-color: white;
     padding: 50px;
     border-radius: 15px;
@@ -30,12 +24,12 @@ body, html {
     width: 85%;
     max-width: 1600px;
     text-align: center;
-    min-height: 800px; 
+    min-height: 800px;
     display: flex;
     flex-direction: column;
 }
 
-.user-table {
+.category-table {
     background: white;
     border-radius: 15px;
     overflow: hidden;
@@ -44,35 +38,31 @@ body, html {
     box-shadow: 0px 5px 25px rgba(0, 0, 0, 0.2);
 }
 
-.user-table th {
+.category-table th {
     background: linear-gradient(135deg, #3498db, #2c3e50);
     color: white;
     font-weight: bold;
     text-align: center;
     padding: 12px;
-    font-size: 18px; 
+    font-size: 18px;
 }
 
-.user-table td {
+.category-table td {
     text-align: center;
     vertical-align: middle;
-    padding: 8px; 
+    padding: 8px;
     font-size: 18px;
     height: 45px;
     max-width: 300px;
 }
 
-.user-table tbody tr:nth-child(even) {
+.category-table tbody tr:nth-child(even) {
     background-color: #f9f9f9;
 }
 
-.user-table tbody tr:hover {
+.category-table tbody tr:hover {
     background-color: #eef5ff;
     transition: 0.2s;
-}
-
-#root {
-    height: 100%;
 }
 
 .search-form {
@@ -100,3 +90,58 @@ body, html {
     border-color: #3498db;
     box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
 }
+
+.add-category-btn {
+    align-self: flex-end;
+    margin-bottom: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-btn {
+    margin: 0 5px;
+    padding: 8px 15px;
+    font-size: 14px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.manage-title {
+    margin-bottom: 30px;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.title-icon {
+    font-size: 24px;
+}
+
+.category-table-container {
+    flex: 1;
+    overflow: auto;
+}
+
+@media (max-width: 768px) {
+    .manage-categories-container {
+        padding: 20px;
+        width: 95%;
+    }
+
+    .search-group {
+        width: 100%;
+    }
+
+    .action-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+} 

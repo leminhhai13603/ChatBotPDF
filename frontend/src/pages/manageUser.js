@@ -19,7 +19,6 @@ const ManageUsers = () => {
         fetchRoles();
     }, []);
 
-    // Lấy danh sách user
     const fetchUsers = async () => {
         try {
             const token = localStorage.getItem("token");
@@ -172,7 +171,6 @@ const ManageUsers = () => {
                     <FaUsersCog className="title-icon" /> Quản Lý Tài Khoản
                 </h2>
 
-                {/* Ô tìm kiếm */}
                 <Form className="search-form">
                     <Form.Group className="search-group">
                         <Form.Control 
@@ -225,7 +223,6 @@ const ManageUsers = () => {
                 </div>
             </Container>
 
-            {/* Modal thêm/sửa tài khoản */}
             <Modal show={showModal} onHide={handleCloseModal}>
                 <Modal.Header closeButton>
                     <Modal.Title>{editMode ? "Chỉnh sửa tài khoản" : "Thêm tài khoản"}</Modal.Title>

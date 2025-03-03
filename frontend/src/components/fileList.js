@@ -21,7 +21,6 @@ const FileList = ({ refresh }) => {
     fetchFiles();
   }, [refresh]);
 
-  // 🏷️ Lấy danh sách roles
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -36,9 +35,8 @@ const FileList = ({ refresh }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log("🏷️ Raw roles response:", response.data); // Log raw response
+      console.log("🏷️ Raw roles response:", response.data);
 
-      // Kiểm tra và format dữ liệu roles
       let formattedRoles = [];
       if (Array.isArray(response.data)) {
         formattedRoles = response.data.map(role => ({
@@ -52,28 +50,26 @@ const FileList = ({ refresh }) => {
         }));
       }
 
-      console.log("🏷️ Formatted roles:", formattedRoles); // Log formatted roles
+      console.log("🏷️ Formatted roles:", formattedRoles);
       setRoles(formattedRoles);
     } catch (error) {
       console.error("❌ Lỗi khi tải danh mục:", error);
     }
   };
 
-  // Thêm useEffect để log thông tin user khi component mount
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     const token = localStorage.getItem("token");
-    console.log("📱 User Info:", { userId, token }); // Debug log
+    console.log("📱 User Info:", { userId, token }); 
   }, []);
 
-  // 📂 Lấy danh sách file
   const fetchFiles = async () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log("📂 Files from API:", response.data.files); // Debug log
+      console.log("📂 Files from API:", response.data.files); 
       setFiles(response.data.files);
       setFilteredFiles(response.data.files);
     } catch (error) {
@@ -81,7 +77,6 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  // 🔍 Tìm kiếm và lọc file
   const filterFiles = () => {
     let filtered = [...files];
     const userRole = localStorage.getItem("userRole");
@@ -96,7 +91,6 @@ const FileList = ({ refresh }) => {
       }))
     });
 
-    // Nếu không phải admin và đã chọn danh mục cụ thể
     if (userRole !== 'admin' && selectedRole !== "all") {
       filtered = filtered.filter(file => {
         const fileGroupId = Number(file.group_id || 0);
@@ -113,7 +107,6 @@ const FileList = ({ refresh }) => {
       });
     }
     
-    // Lọc theo từ khóa tìm kiếm
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -132,25 +125,21 @@ const FileList = ({ refresh }) => {
     setCurrentPage(1);
   };
 
-  // 🔄 Chạy filter mỗi khi selectedRole hoặc searchQuery thay đổi
   useEffect(() => {
     filterFiles();
-  }, [selectedRole, searchQuery, files]); // Thêm files vào dependencies
+  }, [selectedRole, searchQuery, files]); 
 
-  // 🔍 Xử lý tìm kiếm
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
     filterFiles();
   };
 
-  // 📑 Xử lý chọn danh mục
   const handleCategoryChange = (e) => {
     const newRole = e.target.value;
-    console.log("🔄 Selected role changed:", newRole); // Debug log
+    console.log("🔄 Selected role changed:", newRole); 
     setSelectedRole(newRole);
   };
 
-  // Hàm cắt ngắn tên file
   const truncateFileName = (fileName, maxLength = 30) => {
     if (fileName.length <= maxLength) return fileName;
     const extension = fileName.split('.').pop();
@@ -158,7 +147,6 @@ const FileList = ({ refresh }) => {
     return `${nameWithoutExt.slice(0, maxLength - 3)}...${extension}`;
   };
 
-  // 🗑️ Xóa file
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -172,35 +160,29 @@ const FileList = ({ refresh }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      // Cập nhật danh sách file
       setFiles(files.filter(file => file.id !== fileToDelete.id));
       setFilteredFiles(filteredFiles.filter(file => file.id !== fileToDelete.id));
       
-      // Reset states
       setFileToDelete(null);
       setShowDeleteModal(false);
       setSelectedFile(null);
 
-      // Thông báo thành công
       console.log("✅ Xóa file thành công");
     } catch (error) {
       console.error("❌ Lỗi khi xóa file:", error);
     }
   };
 
-  // 🗑️ Mở modal xác nhận xóa
   const confirmDelete = (file) => {
     setFileToDelete(file);
     setShowDeleteModal(true);
   };
 
-  // 🚫 Đóng modal xóa
   const closeDeleteModal = () => {
     setFileToDelete(null);
     setShowDeleteModal(false);
   };
 
-  // 📌 Phân trang
   const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
   const indexOfLastFile = currentPage * filesPerPage;
   const indexOfFirstFile = indexOfLastFile - filesPerPage;
@@ -212,7 +194,6 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  // 📖 Chọn file để xem trước
   const handleFileClick = (file) => {
     if (selectedFile?.id === file.id) {
       setSelectedFile(null);
@@ -221,17 +202,14 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  // Hàm định dạng lại text để hiển thị
   const formatText = (text) => {
     if (!text) return '';
     
-    // Thay thế các ký tự xuống dòng liên tiếp bằng một thẻ <br>
     return text
-      .replace(/\n\s*\n/g, '<br/><br/>') // Thay 2+ dòng trống bằng 2 <br>
-      .replace(/\n/g, '<br/>'); // Thay các dòng đơn bằng 1 <br>
+      .replace(/\n\s*\n/g, '<br/><br/>') 
+      .replace(/\n/g, '<br/>'); 
   };
 
-  // Component hiển thị nội dung file
   const FileContent = ({ content }) => {
     if (!content) return <div className="file-content">Không có nội dung</div>;
     
@@ -270,7 +248,6 @@ const FileList = ({ refresh }) => {
 
         <div className="file-list-container">
           <div className="filters">
-            {/* 🔽 Chọn danh mục */}
             <select 
               className="form-select category-select" 
               value={selectedRole} 
@@ -288,7 +265,6 @@ const FileList = ({ refresh }) => {
               ))}
             </select>
 
-            {/* 🔍 Tìm kiếm */}
             <input
               type="text"
               className="form-control search-bar"
@@ -335,7 +311,7 @@ const FileList = ({ refresh }) => {
                           onClick={() => confirmDelete(file)}
                           title="Xóa file"
                         >
-                          🗑️
+                          🗑️Xoá
                         </button>
                       </td>
                     </tr>
@@ -345,7 +321,6 @@ const FileList = ({ refresh }) => {
             </tbody>
           </table>
 
-          {/* 🔄 Phân trang */}
           {totalPages > 1 && (
             <div className="pagination">
               <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
@@ -364,7 +339,6 @@ const FileList = ({ refresh }) => {
         </div>
       </div>
 
-      {/* 🗑️ Modal Xóa File */}
       {showDeleteModal && (
         <div className="delete-modal">
           <div className="modal-content">

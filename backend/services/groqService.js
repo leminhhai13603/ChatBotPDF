@@ -1,7 +1,6 @@
 const axios = require("axios");
 require("dotenv").config();
 
-// Hàm gọi Groq API để tạo embedding
 exports.createEmbedding = async (text) => {
     try {
         const response = await axios.post(
@@ -25,7 +24,6 @@ exports.createEmbedding = async (text) => {
     }
 };
 
-// Hàm gọi Groq API để trả lời câu hỏi
 exports.askGroq = async (query) => {
     try {
         const response = await axios.post(
@@ -60,8 +58,6 @@ exports.askGroq = async (query) => {
         return response.data.choices[0].message.content;
     } catch (error) {
         console.error("❌ Lỗi khi gọi Groq API:", error.response?.data || error.message);
-        
-        // Fallback sang OpenAI nếu Groq lỗi
         try {
             console.log("⚠️ Groq lỗi, chuyển sang OpenAI...");
             

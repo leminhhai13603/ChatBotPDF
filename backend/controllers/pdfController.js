@@ -139,125 +139,58 @@ exports.searchPDF = async (req, res) => {
             return res.status(400).json({ error: "Không có truy vấn tìm kiếm" });
         }
 
-        // Lấy thông tin user từ request
         const userId = req.user.id;
         const userRoles = req.user.roles || [];
 
-        console.log(`🔎 Đang tìm kiếm: "${query}" cho user ${userId} với roles ${userRoles.join(', ')}`);
+        console.log(`🔎 Đang tìm kiếm: "${query}" cho user ${userId}`);
 
-        // Sử dụng LangChain retrieval chain để tìm kiếm và trả lời
-        try {
-            console.log("🔍 Sử dụng LangChain retrieval chain...");
-            const answer = await langchainService.queryRetrievalChain(userId, query, userRoles);
+        // Tạo embedding cho query
+        const queryEmbedding = await groqService.createEmbedding(query);
+        
+        // Tìm kiếm trong database với phân quyền
+        const searchResults = await pdfModel.getVectorSearchResultWithRoles(queryEmbedding, userId, userRoles);
+        
+        if (searchResults) {
+            console.log("✅ Tìm thấy kết quả trong database");
             
-            // Kiểm tra nếu không tìm thấy thông tin trong tài liệu
-            if (answer.includes("Tôi không tìm thấy đủ thông tin trong tài liệu") || 
-                answer.includes("không có đủ thông tin")) {
-                
-                console.log("⚠️ LangChain không tìm thấy thông tin, chuyển sang tìm kiếm thông thường...");
-                
-                // Tạo embedding cho query gốc
-                const queryEmbedding = await groqService.createEmbedding(query);
-                
-                // Tìm kiếm trong database với phân quyền
-                const searchResults = await pdfModel.getVectorSearchResultWithRoles(queryEmbedding, userId, userRoles);
-                
-                if (searchResults) {
-                    console.log("✅ Database có kết quả phù hợp.");
-                    
-                    // Tạo prompt với kết quả tìm kiếm
-                    const prompt = `
-                    Dựa vào các đoạn văn bản sau đây, hãy trả lời câu hỏi: "${query}"
-                    
-                    ${searchResults.map(result => result.content).join('\n\n')}
-                    
-                    Trả lời bằng tiếng Việt, ngắn gọn, đầy đủ và chính xác. Nếu không có thông tin liên quan, hãy nói "Tôi không tìm thấy thông tin liên quan trong tài liệu."
-                    `;
-                    
-                    // Gọi Groq AI với prompt
-                    const answer = await groqService.askGroq(prompt);
-                    
-                    // Lưu lịch sử hội thoại
-                    await chatModel.saveChatHistory(userId, query, answer, "database");
-                    
-                    return res.json({
-                        source: "database",
-                        answer: answer
-                    });
-                } else {
-                    console.log("⚠️ Database không có kết quả phù hợp, gọi AI...");
-                    
-                    // Gọi Groq AI
-                    const answer = await groqService.askGroq(query);
-                    
-                    // Lưu lịch sử hội thoại
-                    await chatModel.saveChatHistory(userId, query, answer, "groq");
-                    
-                    return res.json({
-                        source: "groq",
-                        answer: answer
-                    });
-                }
-            } else {
-                console.log("✅ LangChain tìm thấy thông tin phù hợp.");
-                
-                // Lưu lịch sử hội thoại
-                await chatModel.saveChatHistory(userId, query, answer, "langchain");
-                
-                return res.json({
-                    source: "langchain",
-                    answer: answer
-                });
-            }
-        } catch (langchainError) {
-            console.error("❌ Lỗi khi sử dụng LangChain:", langchainError);
+            // Tạo prompt thông minh hơn với context từ nhiều tài liệu
+            const prompt = `
+            Dựa vào các đoạn văn bản sau đây từ ${searchResults.length} tài liệu, hãy trả lời câu hỏi: "${query}"
+
+            ${searchResults.map(doc => `
+            📄 Từ tài liệu "${doc.pdf_name}":
+            ${doc.chunks.map(chunk => `
+            ${chunk.section_title ? `[${chunk.section_title}]` : ''}
+            ${chunk.content}
+            `).join('\n')}
+            `).join('\n\n')}
             
-            // Nếu LangChain lỗi, chuyển sang tìm kiếm thông thường
-            console.log("⚠️ LangChain lỗi, chuyển sang tìm kiếm thông thường...");
+            Trả lời bằng tiếng Việt, ngắn gọn, đầy đủ và chính xác. 
+            Nếu thông tin từ nhiều tài liệu khác nhau, hãy tổng hợp và nêu rõ nguồn.
+            Nếu không có thông tin liên quan, hãy nói "Tôi không tìm thấy thông tin liên quan trong tài liệu."
+            `;
             
-            // Tạo embedding cho query
-            const queryEmbedding = await groqService.createEmbedding(query);
+            const answer = await groqService.askGroq(prompt);
             
-            // Tìm kiếm trong database với phân quyền
-            const searchResults = await pdfModel.getVectorSearchResultWithRoles(queryEmbedding, userId, userRoles);
-            
-            if (searchResults) {
-                console.log("✅ Database có kết quả phù hợp.");
-                
-                // Tạo prompt với kết quả tìm kiếm
-                const prompt = `
-                Dựa vào các đoạn văn bản sau đây, hãy trả lời câu hỏi: "${query}"
-                
-                ${searchResults.map(result => result.content).join('\n\n')}
-                
-                Trả lời bằng tiếng Việt, ngắn gọn, đầy đủ và chính xác. Nếu không có thông tin liên quan, hãy nói "Tôi không tìm thấy thông tin liên quan trong tài liệu."
-                `;
-                
-                // Gọi Groq AI với prompt
-                const answer = await groqService.askGroq(prompt);
-                
-                // Lưu lịch sử hội thoại
-                await chatModel.saveChatHistory(userId, query, answer, "database");
-                
-                return res.json({
-                    source: "database",
-                    answer: answer
-                });
-            } else {
-                console.log("⚠️ Database không có kết quả phù hợp, gọi AI...");
-                
-                // Gọi Groq AI
-                const answer = await groqService.askGroq(query);
-                
-                // Lưu lịch sử hội thoại
-                await chatModel.saveChatHistory(userId, query, answer, "groq");
-                
-                return res.json({
-                    source: "groq",
-                    answer: answer
-                });
-            }
+            return res.json({
+                source: "database",
+                answer: answer,
+                documents: searchResults.map(doc => ({
+                    name: doc.pdf_name,
+                    relevance: doc.chunks[0].similarity
+                }))
+            });
         }
+
+        // Nếu không tìm thấy, sử dụng AI
+        console.log("⚠️ Không tìm thấy trong database, chuyển sang AI");
+        const answer = await groqService.askGroq(query);
+        
+        return res.json({
+            source: "groq",
+            answer: answer
+        });
+
     } catch (error) {
         console.error("❌ Lỗi khi tìm kiếm:", error);
         res.status(500).json({ error: "Lỗi máy chủ khi tìm kiếm." });

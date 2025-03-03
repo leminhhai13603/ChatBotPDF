@@ -75,7 +75,7 @@
     padding: 1rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    height: fit-content; /* Bỏ scroll, để container tự động mở rộng */
+    height: fit-content; 
 }
 
 
@@ -102,7 +102,7 @@
 }
 
 .file-list-table th:first-child {
-    width: 40%; /* Tăng độ rộng cột tên file */
+    width: 40%; 
 }
 
 .file-list-table th:nth-child(2),
@@ -111,7 +111,7 @@
 }
 
 .file-list-table th:last-child {
-    width: 50px; /* Thu nhỏ cột hành động */
+    width: 50px; 
     text-align: center;
 }
 
@@ -159,7 +159,6 @@
     font-weight: bold;
 }
 
-/* 📌 Hiển thị file đang được chọn (highlight) */
 .selected-row {
     background-color: #f8f9fa !important;
     font-weight: bold;
@@ -170,7 +169,6 @@
     font-weight: bold;
 }
 
-/* 📌 Hiệu ứng hover */
 .file-name {
     cursor: pointer;
     color: #007bff;
@@ -188,10 +186,9 @@
 }
 
 .category-select {
-    width: 150px; /* Thu nhỏ độ rộng dropdown */
+    width: 150px;
 }
 
-/* Làm gọn dropdown options */
 .category-select option {
     white-space: nowrap;
     overflow: hidden;
@@ -199,7 +196,6 @@
     max-width: 150px;
 }
 
-/* Các style khác giữ nguyên */
 .file-name {
     display: inline-block;
     max-width: 300px;
@@ -235,7 +231,6 @@
     color: #dc2626;
 }
 
-/* Bỏ các styles liên quan đến scroll */
 .file-list-container {
     overflow: visible;
 }

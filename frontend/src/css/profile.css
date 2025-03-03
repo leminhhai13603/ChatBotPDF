@@ -1,11 +1,9 @@
-/* ✅ Reset margin để tránh viền trắng trên đầu */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* ✅ Nền gradient động */
 .profile-page {
     width: 100vw;
     height: 100vh;
@@ -17,13 +15,11 @@
     animation: bgAnimation 6s infinite alternate;
 }
 
-/* ✅ Animation cho nền */
 @keyframes bgAnimation {
     0% { background-position: 0% 50%; }
     100% { background-position: 100% 50%; }
 }
 
-/* ✅ Form kính mờ */
 .profile-card {
     width: 100%;
     max-width: 500px;
@@ -37,7 +33,6 @@
     text-align: center;
 }
 
-/* ✅ Tiêu đề phát sáng */
 .profile-title {
     font-size: 26px;
     font-weight: bold;
@@ -45,7 +40,6 @@
     text-shadow: 0px 0px 15px rgba(255, 255, 255, 0.8);
 }
 
-/* ✅ Input đẹp, bo góc */
 .profile-card input {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -55,19 +49,16 @@
     width: 100%;
 }
 
-/* ✅ Placeholder màu trắng nhẹ */
 .profile-card input::placeholder {
     color: rgba(255, 255, 255, 0.8);
 }
 
-/* ✅ Hiệu ứng khi focus */
 .profile-card input:focus {
     background: rgba(255, 255, 255, 0.3);
     border: 1px solid white;
     outline: none;
 }
 
-/* ✅ Nút Lưu Thay Đổi ngầu lòi */
 .profile-btn {
     background: linear-gradient(90deg, #ff416c, #ff4b2b);
     border: none;
@@ -81,19 +72,16 @@
     box-shadow: 0px 4px 15px rgba(255, 75, 43, 0.5);
 }
 
-/* ✅ Hiệu ứng hover */
 .profile-btn:hover {
     background: linear-gradient(90deg, #ff4b2b, #ff416c);
     transform: scale(1.05);
     box-shadow: 0px 0px 25px rgba(255, 75, 43, 0.7);
 }
 
-/* ✅ Hiệu ứng Alert */
 .profile-alert {
     animation: fadeIn 0.5s ease-in-out;
 }
 
-/* ✅ Animation cho Alert */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }

@@ -2,20 +2,16 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { OpenAI } = require("openai");
 require('dotenv').config();
 
-// Khởi tạo Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Khởi tạo OpenAI cho việc tạo embeddings
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
 class GeminiService {
     constructor() {
-        // Khởi tạo model
         this.model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
         
-        // Cấu hình chat
         this.chatConfig = {
             temperature: 0.7,
             topK: 40,
@@ -25,15 +21,14 @@ class GeminiService {
     }
 
     /**
-     * Gửi câu hỏi đến Gemini và nhận câu trả lời
-     * @param {string} prompt - Câu hỏi cần hỏi
-     * @returns {Promise<string>} Câu trả lời từ Gemini
+
+     * @param {string} prompt 
+     * @returns {Promise<string>} 
      */
     async askGemini(prompt) {
         try {
             console.log("🤖 Đang gửi prompt đến Gemini:", prompt.substring(0, 100) + "...");
 
-            // Tạo chat và gửi prompt
             const chat = this.model.startChat({
                 generationConfig: this.chatConfig,
                 history: [],
@@ -48,7 +43,6 @@ class GeminiService {
         } catch (error) {
             console.error("❌ Lỗi khi gọi Gemini:", error);
             
-            // Xử lý các lỗi cụ thể
             if (error.message.includes("quota")) {
                 throw new Error("Đã vượt quá giới hạn quota Gemini API");
             }
@@ -61,9 +55,8 @@ class GeminiService {
     }
 
     /**
-     * Tạo embedding cho văn bản sử dụng OpenAI
-     * @param {string} text - Văn bản cần tạo embedding
-     * @returns {Promise<number[]>} Vector embedding
+     * @param {string} text 
+     * @returns {Promise<number[]>} 
      */
     async createEmbedding(text) {
         try {
@@ -83,29 +76,24 @@ class GeminiService {
     }
 
     /**
-     * Xử lý văn bản dài bằng cách chia thành các phần nhỏ hơn
-     * @param {string} text - Văn bản cần xử lý
-     * @returns {Promise<string>} Kết quả tổng hợp
+     * @param {string} text 
+     * @returns {Promise<string>} 
      */
     async processLongText(text) {
-        try {
-            // Chia văn bản thành các phần nhỏ hơn (khoảng 30k ký tự)
+        try { 
             const chunks = this.splitTextIntoChunks(text, 30000);
             const results = [];
 
-            // Xử lý từng phần
             for (let i = 0; i < chunks.length; i++) {
                 console.log(`🔄 Đang xử lý phần ${i + 1}/${chunks.length}`);
                 const result = await this.askGemini(chunks[i]);
                 results.push(result);
             }
 
-            // Tổng hợp kết quả
             if (results.length === 1) {
                 return results[0];
             }
 
-            // Nếu có nhiều phần, tổng hợp lại
             const summaryPrompt = `Tổng hợp các thông tin sau thành một câu trả lời mạch lạc:
 
 ${results.join('\n\n')}`;
@@ -118,10 +106,9 @@ ${results.join('\n\n')}`;
     }
 
     /**
-     * Chia văn bản thành các phần nhỏ hơn
-     * @param {string} text - Văn bản cần chia
-     * @param {number} maxLength - Độ dài tối đa của mỗi phần
-     * @returns {string[]} Mảng các phần văn bản
+     * @param {string} text
+     * @param {number} maxLength 
+     * @returns {string[]}
      */
     splitTextIntoChunks(text, maxLength) {
         const chunks = [];
@@ -145,8 +132,7 @@ ${results.join('\n\n')}`;
     }
 
     /**
-     * Kiểm tra trạng thái của service
-     * @returns {Promise<boolean>} true nếu service hoạt động bình thường
+     * @returns {Promise<boolean>} 
      */
     async checkHealth() {
         try {

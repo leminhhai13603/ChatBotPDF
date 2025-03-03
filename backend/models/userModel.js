@@ -186,3 +186,33 @@ exports.getUserRolesWithId = async (userId) => {
         client.release();
     }
 };
+
+// Thêm hàm mới để lấy role_ids của user
+exports.getUserRoleIds = async (userId) => {
+    const client = await pool.connect();
+    try {
+        const roleQuery = `
+            SELECT role_id 
+            FROM user_roles 
+            WHERE user_id = $1
+            ORDER BY role_id`;
+        const roleResult = await client.query(roleQuery, [userId]);
+        return roleResult.rows.map(row => row.role_id);
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy role IDs:", error);
+        throw new Error("Lỗi khi lấy role IDs của người dùng!");
+    } finally {
+        client.release();
+    }
+};
+
+// Thêm hàm kiểm tra user có phải admin không
+exports.isUserAdmin = async (userRoles) => {
+    try {
+        return Array.isArray(userRoles) && 
+               userRoles.some(role => role.toLowerCase() === 'admin');
+    } catch (error) {
+        console.error("❌ Lỗi khi kiểm tra quyền admin:", error);
+        throw new Error("Lỗi khi kiểm tra quyền admin!");
+    }
+};

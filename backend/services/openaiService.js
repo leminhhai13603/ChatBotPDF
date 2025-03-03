@@ -1,7 +1,6 @@
 const axios = require("axios");
 require("dotenv").config();
 
-// Tạo embedding từ OpenAI
 exports.generateEmbedding = async (text) => {
   try {
     const response = await axios.post(

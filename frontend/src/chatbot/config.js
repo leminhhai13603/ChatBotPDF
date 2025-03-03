@@ -1,37 +1,50 @@
 import { createChatBotMessage } from "react-chatbot-kit";
 import React from "react";
 
-// Widget hiển thị kết quả từ database
 const DatabaseWidget = (props) => {
   return (
     <div className="database-result">
-      <div className="source-badge">📄 Kết quả từ tài liệu</div>
+      <div className="source-badge">
+        <span className="icon">📄</span>
+        <span className="text">Kết quả từ tài liệu</span>
+      </div>
       <div className="result-content">{props.message}</div>
     </div>
   );
 };
 
-// Widget hiển thị kết quả từ AI
 const AIWidget = (props) => {
   return (
     <div className="ai-result">
-      <div className="source-badge">🤖 Kết quả từ AI</div>
+      <div className="source-badge">
+        <span className="icon">🤖</span>
+        <span className="text">Kết quả từ AI</span>
+      </div>
       <div className="result-content">{props.message}</div>
     </div>
   );
 };
 
 const config = {
-  botName: "Chatbot PDF",
+  botName: "PDF Assistant",
   initialMessages: [
-    createChatBotMessage("Xin chào! Tôi có thể giúp bạn tìm kiếm thông tin trong các tài liệu PDF. Bạn muốn tìm gì?"),
-    createChatBotMessage("Gõ 'help' hoặc 'hướng dẫn' để xem cách sử dụng."),
+    createChatBotMessage(
+      "Xin chào! 👋 Tôi là trợ lý tìm kiếm thông minh. Tôi có thể giúp bạn:",
+      {
+        widget: "features",
+        delay: 500,
+      }
+    ),
+    createChatBotMessage(
+      "Hãy cho tôi biết bạn muốn tìm gì nhé! 🔍",
+      {
+        delay: 1000,
+      }
+    ),
   ],
   customStyles: {
     botMessageBox: {
       backgroundColor: "#376B7E",
-      fontSize: "16px",
-      padding: "12px",
     },
     chatButton: {
       backgroundColor: "#5ccc9d",
@@ -41,16 +54,33 @@ const config = {
     {
       widgetName: "📄 Database",
       widgetFunc: (props) => <DatabaseWidget {...props} />,
+      mapStateToProps: ["messages"],
     },
     {
       widgetName: "🤖 AI",
       widgetFunc: (props) => <AIWidget {...props} />,
+      mapStateToProps: ["messages"],
+    },
+    {
+      widgetName: "features",
+      widgetFunc: () => (
+        <div className="features-list">
+          <ul>
+            <li>📄 Tìm kiếm trong tài liệu PDF</li>
+            <li>💡 Trả lời câu hỏi thông minh</li>
+            <li>📝 Tóm tắt nội dung quan trọng</li>
+          </ul>
+        </div>
+      ),
     },
   ],
   customComponents: {
     header: () => (
       <div className="chatbot-header">
-        <h3>Trợ lý tìm kiếm PDF</h3>
+        <h3>
+          <span className="icon">🤖</span>
+          Trợ lý tìm kiếm PDF
+        </h3>
       </div>
     ),
   },
