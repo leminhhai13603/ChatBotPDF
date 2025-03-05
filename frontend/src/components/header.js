@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navbar, Container, Dropdown, Button } from "react-bootstrap";
-import { FaUser, FaSignOutAlt, FaCog, FaLock, FaUsersCog, FaHome, FaFolder } from "react-icons/fa";
+import { FaUser, FaSignOutAlt, FaCog, FaLock, FaUsersCog, FaHome, FaFolder, FaBook } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
@@ -42,6 +42,14 @@ const Header = ({ onLogout }) => {
                             <FaHome /> <span className="ms-1">Trang chủ</span>
                         </Button>
                     )}
+                    <Button 
+                        variant="light" 
+                        className="me-3" 
+                        onClick={() => navigate("/blog")}
+                        title="Xem tài liệu"
+                    >
+                        <FaBook /> <span className="ms-1">Không gian chung</span>
+                    </Button>
                     <div className="header-title">Hệ Thống Quản Lý PDF</div>
                 </div>
 

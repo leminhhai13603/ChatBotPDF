@@ -13,6 +13,10 @@ import ManageUsers from "./pages/manageUser";
 import ManageCategories from "./pages/manageCategory";
 import "./css/App.css";
 import axios from "axios";
+import BlogList from './pages/BlogList';
+import PrivateRoute from './components/PrivateRoute';
+import BlogDetail from './pages/BlogDetail';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; 
 
 const App = () => {
@@ -102,6 +106,19 @@ const App = () => {
                                     <Route path="/manage-categories" element={<ManageCategories />} />
                                 </>
                             )}
+                            <Route path="/blog" element={
+                                <PrivateRoute>
+                                    <BlogList />
+                                </PrivateRoute>
+                            } />
+                            <Route 
+                                path="/blog/:id" 
+                                element={
+                                    <PrivateRoute>
+                                        <BlogDetail />
+                                    </PrivateRoute>
+                                } 
+                            />
                             <Route path="*" element={<Navigate to="/" />} />
                         </>
                     ) : (

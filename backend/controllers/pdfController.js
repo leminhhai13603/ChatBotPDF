@@ -370,6 +370,106 @@ const getSectionForChunk = (chunk, sections) => {
         }
     }
     
-    // Nếu không tìm thấy, trả về phần cuối cùng hoặc "Không xác định"
     return sections.length > 0 ? sections[sections.length - 1].title : "Không xác định";
+};
+
+exports.getPDFDetails = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const pdfId = req.params.id;
+
+        const query = `
+            SELECT 
+                pf.id,
+                pf.pdf_name,
+                pf.uploaded_at,
+                pf.full_text as content,
+                pf.group_id,
+                u.fullname as uploaded_by_name,
+                r.name as category_name
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN roles r ON pf.group_id = r.id
+            WHERE pf.id = $1
+        `;
+
+        const result = await client.query(query, [pdfId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Không tìm thấy tài liệu" });
+        }
+
+        const pdf = result.rows[0];
+
+        const response = {
+            id: pdf.id,
+            title: pdf.pdf_name,
+            uploadedAt: pdf.uploaded_at,
+            content: pdf.content,
+            groupId: pdf.group_id,
+            author: pdf.uploaded_by_name,
+            category: pdf.category_name,
+            readingTime: Math.ceil(pdf.content.split(' ').length / 200) // Ước tính thời gian đọc
+        };
+
+        res.json(response);
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy chi tiết PDF:", error);
+        res.status(500).json({ error: "Lỗi server" });
+    } finally {
+        client.release();
+    }
+};
+
+exports.getPDFsByCategory = async (req, res) => {
+    const client = await pool.connect();
+    try {
+        // Lấy role_id của "không gian chung"
+        const publicSpaceQuery = `SELECT id FROM roles WHERE name ILIKE '%không gian chung%'`;
+        const publicSpaceResult = await client.query(publicSpaceQuery);
+        
+        if (publicSpaceResult.rows.length === 0) {
+            return res.status(404).json({ error: "Không tìm thấy danh mục không gian chung" });
+        }
+
+        const publicSpaceId = publicSpaceResult.rows[0].id;
+
+        const query = `
+            SELECT 
+                pf.id,
+                pf.pdf_name as title,
+                pf.uploaded_at as "uploadedAt",
+                LEFT(pf.full_text, 300) as excerpt,
+                u.fullname as author,
+                r.name as category,
+                CEIL(LENGTH(pf.full_text) / 1000.0) as "readingTime"
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN roles r ON pf.group_id = r.id
+            WHERE pf.group_id = $1
+            ORDER BY pf.uploaded_at DESC
+        `;
+
+        const result = await client.query(query, [publicSpaceId]);
+
+        // Format lại kết quả
+        const pdfs = result.rows.map(pdf => ({
+            id: pdf.id,
+            title: pdf.title,
+            excerpt: pdf.excerpt + '...',
+            uploadedAt: pdf.uploadedAt,
+            author: pdf.author,
+            category: pdf.category,
+            readingTime: pdf.readingTime
+        }));
+
+        res.json(pdfs);
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách PDF:", error);
+        res.status(500).json({ error: "Lỗi khi lấy danh sách PDF" });
+    } finally {
+        client.release();
+    }
 };

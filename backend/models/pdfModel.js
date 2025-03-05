@@ -20,10 +20,9 @@ exports.savePDFMetadata = async (pdfName, fullText, uploadedBy, groupId) => {
             RETURNING id;
         `;
         
-        // Đảm bảo text được lưu đúng định dạng
         const sanitizedText = fullText
-            .replace(/\u0000/g, '') // Loại bỏ null bytes
-            .replace(/\r\n/g, '\n'); // Chuẩn hóa xuống dòng
+            .replace(/\u0000/g, '') 
+            .replace(/\r\n/g, '\n');
             
         const result = await client.query(insertQuery, [pdfName, sanitizedText, uploadedBy, groupId]);
         return result.rows[0].id;
@@ -35,11 +34,9 @@ exports.savePDFMetadata = async (pdfName, fullText, uploadedBy, groupId) => {
     }
 };
 
-// ✅ Lưu các đoạn văn bản và embedding vào bảng pdf_chunks
 exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
     const client = await pool.connect();
     try {
-        // Cập nhật query để lưu thêm metadata
         const insertQuery = `
             INSERT INTO pdf_chunks (
                 pdf_id, content, embedding, 
@@ -56,8 +53,6 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
                 console.error(`⚠️ Lỗi dữ liệu embedding:`, embeddings[i]);
                 throw new Error(`Embedding tại index ${i} không phải là mảng!`);
             }
-
-            // Lấy metadata cho chunk này hoặc tạo metadata mặc định
             const chunkMetadata = metadata[i] || {
                 chunk_index: i,
                 section_title: "Không xác định",
@@ -65,8 +60,7 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
                 keywords: [],
                 chunk_length: chunks[i].length
             };
-
-            // Chuyển embedding thành chuỗi đúng format
+            
             const embeddingStr = `[${embeddings[i].join(",")}]`;
             
             await client.query(insertQuery, [
@@ -337,6 +331,113 @@ exports.deleteChunks = async (pdfId) => {
     } catch (error) {
         console.error("❌ Lỗi khi xóa chunks:", error);
         return false;
+    } finally {
+        client.release();
+    }
+};
+
+exports.getPDFDetails = async (pdfId, userId, userRoles) => {
+    const client = await pool.connect();
+    try {
+        const isAdmin = userRoles.includes('admin');
+        
+        const query = `
+            SELECT 
+                pf.id,
+                pf.pdf_name,
+                pf.uploaded_at,
+                pf.full_text as content,
+                pf.group_id,
+                u.fullname as uploaded_by_name,
+                c.name as category_name,
+                ARRAY_AGG(DISTINCT pc.section_title) FILTER (WHERE pc.section_title IS NOT NULL) as sections,
+                ARRAY_AGG(DISTINCT pc.keywords) FILTER (WHERE pc.keywords IS NOT NULL) as keywords
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN categories c ON pf.category_id = c.id
+            LEFT JOIN pdf_chunks pc ON pf.id = pc.pdf_id
+            WHERE pf.id = $1
+            ${!isAdmin ? 'AND pf.group_id = ANY($2)' : ''}
+            GROUP BY pf.id, u.fullname, c.name
+        `;
+
+        const params = isAdmin ? [pdfId] : [pdfId, userRoles];
+        const result = await client.query(query, params);
+
+        if (result.rows.length === 0) {
+            return null;
+        }
+
+        const pdf = result.rows[0];
+        return {
+            id: pdf.id,
+            title: pdf.pdf_name,
+            uploadedAt: pdf.uploaded_at,
+            content: pdf.content,
+            groupId: pdf.group_id,
+            author: pdf.uploaded_by_name,
+            category: pdf.category_name,
+            sections: pdf.sections || [],
+            keywords: pdf.keywords || [],
+            readingTime: Math.ceil(pdf.content.split(' ').length / 200) // Ước tính thời gian đọc
+        };
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy chi tiết PDF:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+exports.getPDFsByCategory = async (categoryId, userId, userRoles) => {
+    const client = await pool.connect();
+    try {
+        const isAdmin = userRoles.includes('admin');
+        
+        const query = `
+            SELECT 
+                pf.id,
+                pf.pdf_name as title,
+                pf.uploaded_at,
+                LEFT(pf.full_text, 300) as excerpt,
+                pf.group_id,
+                u.fullname as author,
+                c.name as category,
+                (
+                    SELECT ARRAY_AGG(DISTINCT keywords) 
+                    FROM pdf_chunks 
+                    WHERE pdf_id = pf.id AND keywords IS NOT NULL
+                ) as keywords
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN categories c ON pf.category_id = c.id
+            WHERE ${categoryId ? 'pf.category_id = $1' : 'pf.category_id IS NOT NULL'}
+            ${!isAdmin ? 'AND pf.group_id = ANY($2)' : ''}
+            GROUP BY pf.id, u.fullname, c.name
+            ORDER BY pf.uploaded_at DESC
+        `;
+
+        const params = categoryId 
+            ? (isAdmin ? [categoryId] : [categoryId, userRoles])
+            : (isAdmin ? [] : [userRoles]);
+
+        const result = await client.query(query, params);
+
+        return result.rows.map(pdf => ({
+            id: pdf.id,
+            title: pdf.title,
+            excerpt: pdf.excerpt + '...',
+            uploadedAt: pdf.uploaded_at,
+            author: pdf.author,
+            category: pdf.category,
+            keywords: pdf.keywords || [],
+            readingTime: Math.ceil(pdf.excerpt.split(' ').length / 200)
+        }));
+
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách PDF theo category:", error);
+        throw error;
     } finally {
         client.release();
     }

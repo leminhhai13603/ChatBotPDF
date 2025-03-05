@@ -1,0 +1,148 @@
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: #f0f2f5;
+}
+
+.blog-list-container {
+    min-height: calc(100vh - 64px);
+    padding: 24px;
+    background: #fff;
+    position: absolute;
+    left: 0;
+    right: 0;
+}
+
+.blog-list-content {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0;
+}
+
+.blog-card {
+    height: 100%;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    transition: all 0.3s;
+    cursor: pointer;
+    padding: 16px;
+}
+
+.blog-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #1890ff;
+}
+
+.blog-card .ant-card-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.blog-card .ant-typography {
+    color: rgba(0, 0, 0, 0.85);
+}
+
+.blog-card:hover .ant-typography {
+    color: #1890ff;
+}
+
+.blog-card .ant-tag {
+    margin: 4px;
+    font-size: 12px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .blog-list-container {
+        max-width: 960px;
+        padding: 20px;
+    }
+}
+
+@media (max-width: 992px) {
+    .blog-list-container {
+        max-width: 720px;
+        padding: 16px;
+    }
+}
+
+@media (max-width: 768px) {
+    .blog-list-container {
+        padding: 16px;
+    }
+    
+    .blog-list-content {
+        padding: 0;
+    }
+    
+    .blog-card {
+        margin-bottom: 16px;
+    }
+}
+
+@media (max-width: 576px) {
+    .blog-list-container {
+        max-width: 100%;
+        padding: 12px;
+    }
+}
+
+/* Loading skeleton styles */
+.ant-skeleton {
+    padding: 24px;
+}
+
+.ant-skeleton-title {
+    margin-bottom: 16px !important;
+}
+
+.blog-detail-container {
+    padding: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.blog-content {
+    font-size: 16px;
+    line-height: 1.8;
+}
+
+.content-section {
+    margin-bottom: 32px;
+}
+
+.table-of-contents {
+    background: #f8f9fa;
+    margin-bottom: 24px;
+}
+
+.toc-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.toc-list li {
+    margin: 8px 0;
+}
+
+.toc-list a {
+    color: #1890ff;
+    text-decoration: none;
+}
+
+.toc-list a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .blog-detail-container {
+        padding: 16px;
+    }
+    
+    .blog-content {
+        font-size: 14px;
+    }
+} 
