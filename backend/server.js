@@ -42,6 +42,17 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://0.0.0.0:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+    const address = server.address();
+    console.log(`🚀 Server đang chạy tại:`);
+    console.log(`- Local: http://localhost:${address.port}`);
+    console.log(`- Network: http://${address.address}:${address.port}`);
+    console.log(`- PORT được sử dụng: ${address.port}`);
+}).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Port ${PORT} đã được sử dụng. Vui lòng thử port khác.`);
+    } else {
+        console.error('❌ Lỗi khi khởi động server:', err);
+    }
+    process.exit(1);
 });

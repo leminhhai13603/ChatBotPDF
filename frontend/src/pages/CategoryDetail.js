@@ -52,6 +52,7 @@ const CategoryDetail = () => {
     useEffect(() => {
         const categoryWithAccents = getCategoryWithAccents(category);
         console.log("Category with accents:", categoryWithAccents); 
+        fetchPosts(categoryWithAccents);
     }, [category]);
 
     const handleUpload = async (file) => {
