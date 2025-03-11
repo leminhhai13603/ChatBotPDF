@@ -5,6 +5,7 @@ const pdfRoutes = require("./routes/pdfRoutes");
 const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const sheetRoutes = require('./routes/sheetRoutes');
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,11 +15,19 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
-// ✅ Đăng ký routes
+// Thêm middleware để phục vụ static files từ frontend build
+app.use(express.static(path.join(__dirname, '../frontend/build')));
+
+// API routes
 app.use("/api/pdf", pdfRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use('/api/sheets', sheetRoutes);
+
+// Serve React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+});
 
 app.use((req, res) => {
     res.status(404).json({ error: "Không tìm thấy route này!" });

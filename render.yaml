@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: chatbotpdf
+    env: node
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://hai:qFM1FIQTZ79T2Cz92vT2QcD2hPZlgubx@dpg-cv7vaigfnakc73duj170-a/haidb
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /api/health
