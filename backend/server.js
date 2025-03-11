@@ -8,7 +8,7 @@ const sheetRoutes = require('./routes/sheetRoutes');
 const path = require("path");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 // ✅ Middleware
 app.use(cors());
@@ -43,5 +43,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+    console.log(`🚀 Server đang chạy tại http://0.0.0.0:${PORT}`);
 });
