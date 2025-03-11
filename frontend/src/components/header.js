@@ -3,6 +3,10 @@ import { Navbar, Container, Dropdown, Button } from "react-bootstrap";
 import { FaUser, FaSignOutAlt, FaCog, FaLock, FaUsersCog, FaHome, FaFolder, FaBook } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Link } from "react-router-dom";
+import { FaUserCog, FaList, FaBlog } from "react-icons/fa";
+import { TableOutlined } from '@ant-design/icons';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const Header = ({ onLogout }) => {
@@ -50,6 +54,14 @@ const Header = ({ onLogout }) => {
                     >
                         <FaBook /> <span className="ms-1">Không gian chung</span>
                     </Button>
+                    <Button 
+                        variant="light" 
+                        className="me-3" 
+                        onClick={() => navigate("/sheets")}
+                        title="Google Sheets"
+                    >
+                        <TableOutlined /> <span className="ms-1">Google Sheets</span>
+                    </Button>
                     <div className="header-title">Hệ Thống Quản Lý PDF</div>
                 </div>
 
@@ -59,7 +71,7 @@ const Header = ({ onLogout }) => {
                     </Dropdown.Toggle>
                     <Dropdown.Menu align="end">
                         <Dropdown.Item onClick={() => navigate("/profile")}>
-                            <FaCog /> Đổi thông tin cá nhân
+                            <FaUserCog /> Đổi thông tin cá nhân
                         </Dropdown.Item>
                         <Dropdown.Item onClick={() => navigate("/change-password")}>
                             <FaLock /> Đổi mật khẩu

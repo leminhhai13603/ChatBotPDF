@@ -16,6 +16,8 @@ import axios from "axios";
 import BlogList from './pages/BlogList';
 import PrivateRoute from './components/PrivateRoute';
 import BlogDetail from './pages/BlogDetail';
+import CategoryDetail from './pages/CategoryDetail';
+import SheetDashboard from './pages/SheetDashboard';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL; 
 
@@ -106,19 +108,10 @@ const App = () => {
                                     <Route path="/manage-categories" element={<ManageCategories />} />
                                 </>
                             )}
-                            <Route path="/blog" element={
-                                <PrivateRoute>
-                                    <BlogList />
-                                </PrivateRoute>
-                            } />
-                            <Route 
-                                path="/blog/:id" 
-                                element={
-                                    <PrivateRoute>
-                                        <BlogDetail />
-                                    </PrivateRoute>
-                                } 
-                            />
+                            <Route path="/blog" element={<BlogList />} />
+                            <Route path="/blog/category/:category" element={<CategoryDetail />} />
+                            <Route path="/blog/:id" element={<BlogDetail />} />
+                            <Route path="/sheets" element={<PrivateRoute><SheetDashboard /></PrivateRoute>} />
                             <Route path="*" element={<Navigate to="/" />} />
                         </>
                     ) : (

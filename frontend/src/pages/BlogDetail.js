@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Typography, Space, Tag, Divider, Skeleton, Card, Button, message } from 'antd';
 import { 
@@ -21,8 +21,15 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const BlogDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        console.log("Current location:", location);
+        console.log("Location state:", location.state);
+        console.log("Category from state:", location.state?.category);
+    }, [location]);
 
     useEffect(() => {
         const fetchPost = async () => {
@@ -52,7 +59,6 @@ const BlogDetail = () => {
     const formatContent = (content) => {
         if (!content) return [];
 
-        // Tách nội dung thành các section dựa vào các tiêu đề
         const sections = [];
         let currentSection = '';
         let currentTitle = '';
@@ -73,7 +79,6 @@ const BlogDetail = () => {
             }
         });
 
-        // Thêm section cuối cùng
         if (currentTitle || currentSection) {
             sections.push({
                 title: currentTitle,
@@ -85,7 +90,12 @@ const BlogDetail = () => {
     };
 
     const handleBack = () => {
-        navigate('/blog');
+        if (location.state?.fromCategory) {
+            const categoryNoAccent = location.state.categoryNoAccent;
+            navigate(`/blog/category/${categoryNoAccent}`);
+        } else {
+            navigate('/blog');
+        }
     };
 
     if (loading) {

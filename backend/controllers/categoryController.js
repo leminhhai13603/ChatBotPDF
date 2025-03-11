@@ -64,4 +64,95 @@ exports.deleteCategory = async (req, res) => {
         console.error("❌ Lỗi khi xóa danh mục:", error);
         res.status(500).json({ error: "Lỗi khi xóa danh mục" });
     }
+};
+
+exports.getSubCategories = async (req, res) => {
+    try {
+        const subCategories = await categoryModel.getSubCategories();
+        res.json(subCategories);
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách danh mục con:", error);
+        res.status(500).json({ error: "Lỗi server" });
+    }
+};
+
+exports.getPDFsByCategory = async (req, res) => {
+    try {
+        const { subCategory } = req.params;
+        
+        if (!subCategory) {
+            return res.status(400).json({ error: "Thiếu thông tin danh mục!" });
+        }
+
+        const pdfs = await categoryModel.getPDFsBySubCategory(subCategory);
+        res.json(pdfs);
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách PDF:", error);
+        res.status(500).json({ error: "Lỗi server" });
+    }
+};
+
+exports.uploadPDFToCategory = async (req, res) => {
+    try {
+        console.log("📝 Request body:", req.body);
+        console.log("📎 File info:", req.file);
+
+        if (!req.file) {
+            return res.status(400).json({ error: "Không tìm thấy file PDF!" });
+        }
+
+        const { originalFileName, subCategory } = req.body;
+        
+        if (!subCategory) {
+            return res.status(400).json({ error: "Thiếu thông tin danh mục!" });
+        }
+
+        const userId = req.user.id;
+
+        // Backend tự lấy ID của "Không gian chung"
+        const publicSpaceRole = await categoryModel.getPublicSpaceRole();
+        console.log("🏢 Public Space Role:", publicSpaceRole);
+
+        if (!publicSpaceRole) {
+            return res.status(404).json({ error: "Không tìm thấy không gian chung!" });
+        }
+
+        // Lấy thông tin danh mục con
+        const subCategoryInfo = await categoryModel.getSubCategoryByName(subCategory);
+        console.log("📂 Sub Category Info:", subCategoryInfo);
+
+        if (!subCategoryInfo) {
+            return res.status(404).json({ error: "Không tìm thấy danh mục!" });
+        }
+
+        // Xử lý file PDF và lưu vào database
+        const pdfData = {
+            fileName: originalFileName || req.file.originalname,
+            content: req.file.buffer,
+            userId: userId,
+            groupId: publicSpaceRole.id,
+            subCategoryId: subCategoryInfo.id
+        };
+
+        console.log("📤 Saving PDF with data:", {
+            fileName: pdfData.fileName,
+            userId: pdfData.userId,
+            groupId: pdfData.groupId,
+            subCategoryId: pdfData.subCategoryId
+        });
+
+        const result = await categoryModel.savePDFWithCategory(pdfData);
+
+        res.status(201).json({
+            message: "Upload file thành công!",
+            data: result
+        });
+
+    } catch (error) {
+        console.error("❌ Lỗi chi tiết:", error);
+        res.status(500).json({ 
+            error: "Lỗi khi upload file",
+            details: error.message 
+        });
+    }
 }; 

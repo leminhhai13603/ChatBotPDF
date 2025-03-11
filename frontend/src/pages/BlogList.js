@@ -1,102 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
-import { Card, Row, Col, Tag, Space, Typography, Skeleton } from 'antd';
-import { ClockCircleOutlined, UserOutlined, FolderOutlined } from '@ant-design/icons';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, Row, Col, Typography } from 'antd';
+import { 
+    CompassOutlined,
+    SafetyCertificateOutlined,
+    SecurityScanOutlined,
+    StarOutlined,
+    RocketOutlined,
+    TeamOutlined,
+    TrophyOutlined,
+    BookOutlined,
+    MessageOutlined,
+    ReadOutlined
+} from '@ant-design/icons';
 import '../css/blog.css';
 
-const { Title, Text } = Typography;
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+const { Title } = Typography;
+
+const FIXED_CATEGORIES = [
+    {
+        name: 'Định hướng tổng thể',
+        icon: <CompassOutlined />,
+        color: '#1890ff'
+    },
+    {
+        name: 'Nội quy và cam kết bảo mật',
+        icon: <SafetyCertificateOutlined />,
+        color: '#52c41a'
+    },
+    {
+        name: 'Bảo mật',
+        icon: <SecurityScanOutlined />,
+        color: '#722ed1'
+    },
+    {
+        name: 'Gương mặt nổi bật',
+        icon: <StarOutlined />,
+        color: '#faad14'
+    },
+    {
+        name: 'Chiến lược',
+        icon: <RocketOutlined />,
+        color: '#eb2f96'
+    },
+    {
+        name: 'Danh bạ nội bộ & giới thiệu nhân sự',
+        icon: <TeamOutlined />,
+        color: '#13c2c2'
+    },
+    {
+        name: 'Những cột mốc và thành tựu',
+        icon: <TrophyOutlined />,
+        color: '#fa8c16'
+    },
+    {
+        name: 'Câu chuyện người DK - Blog nội bộ',
+        icon: <BookOutlined />,
+        color: '#2f54eb'
+    },
+    {
+        name: 'Hộp thư góp ý',
+        icon: <MessageOutlined />,
+        color: '#f5222d'
+    },
+    {
+        name: 'Tài liệu đào tạo',
+        icon: <ReadOutlined />,
+        color: '#a0d911'
+    }
+];
 
 const BlogList = () => {
-    const [posts, setPosts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchPosts = async () => {
-            try {
-                const token = localStorage.getItem('token');
-                const response = await axios.get(
-                    `${API_BASE_URL}/pdf/category`,
-                    { 
-                        headers: { 
-                            Authorization: `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        } 
-                    }
-                );
-                const formattedPosts = response.data.map(post => ({
-                    ...post,
-                    title: post.title.replace(/\.pdf$/i, '')
-                }));
-                setPosts(formattedPosts);
-            } catch (error) {
-                console.error('❌ Lỗi khi lấy danh sách bài viết:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchPosts();
-    }, []);
-
-    if (loading) {
-        return (
-            <div className="blog-list-container">
-                <Row gutter={[16, 16]}>
-                    {[1, 2, 3].map(i => (
-                        <Col xs={24} sm={12} lg={8} key={i}>
-                            <Card>
-                                <Skeleton active />
-                            </Card>
-                        </Col>
-                    ))}
-                </Row>
-            </div>
-        );
-    }
+    const handleCategoryClick = (category) => {
+        navigate(`/blog/category/${encodeURIComponent(category)}`);
+    };
 
     return (
         <div className="blog-list-container">
             <div className="blog-list-content">
-                <Title level={2} style={{ marginBottom: '24px', textAlign: 'center' }}>
-                    Tài Liệu Không Gian Chung
-                </Title>
-                <Row gutter={[16, 16]}>
-                    {posts.map(post => (
-                        <Col xs={24} sm={12} lg={8} key={post.id}>
-                            <Link to={`/blog/${post.id}`} style={{ textDecoration: 'none' }}>
-                                <Card hoverable className="blog-card">
-                                    <Title level={4} ellipsis={{ rows: 2 }}>
-                                        {post.title}
-                                    </Title>
-                                    <Text type="secondary" ellipsis={{ rows: 3 }}>
-                                        {post.excerpt}
-                                    </Text>
-                                    <Space direction="vertical" size={12} style={{ width: '100%', marginTop: '12px' }}>
-                                        <Space>
-                                            <UserOutlined />
-                                            <Text>{post.author || 'Không xác định'}</Text>
-                                        </Space>
-                                        <Space>
-                                            <ClockCircleOutlined />
-                                            <Text>{post.readingTime} phút đọc</Text>
-                                        </Space>
-                                        <Space>
-                                            <FolderOutlined />
-                                            <Text>{post.category}</Text>
-                                        </Space>
-                                    </Space>
-                                </Card>
-                            </Link>
+                <div className="main-title">
+                    <Title level={1}>Không Gian Chung</Title>
+                </div>
+
+                <Row gutter={[24, 24]}>
+                    {FIXED_CATEGORIES.map((category, index) => (
+                        <Col xs={24} sm={12} md={8} lg={6} key={index}>
+                            <Card 
+                                hoverable
+                                className="category-card"
+                                onClick={() => handleCategoryClick(category.name)}
+                            >
+                                <div className="category-icon" style={{ color: category.color }}>
+                                    {category.icon}
+                                </div>
+                                <Title level={4} className="category-title">
+                                    {category.name}
+                                </Title>
+                            </Card>
                         </Col>
                     ))}
                 </Row>
-                {posts.length === 0 && (
-                    <div style={{ textAlign: 'center', marginTop: '48px' }}>
-                        <Text type="secondary">Chưa có tài liệu nào</Text>
-                    </div>
-                )}
             </div>
         </div>
     );

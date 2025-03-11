@@ -1,0 +1,208 @@
+.sheet-dashboard {
+    padding: 24px;
+}
+
+.sheet-dashboard .ant-card {
+    height: 100%;
+}
+
+.sheet-dashboard .ant-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.sheet-dashboard .ant-table table {
+    white-space: nowrap;
+    min-width: 1200px; /* Đảm bảo bảng đủ rộng */
+}
+
+.sheet-dashboard .ant-table-cell {
+    white-space: normal !important;
+    word-break: break-word;
+    overflow: visible !important;
+}
+
+/* Style cho input và select trong bảng */
+.sheet-dashboard .ant-table-cell .ant-input,
+.sheet-dashboard .ant-table-cell .ant-select {
+    width: 100%;
+}
+
+/* Sửa lại style cho Select và Input */
+.sheet-dashboard .ant-select-selection-item,
+.sheet-dashboard .ant-select-selection-placeholder,
+.sheet-dashboard .ant-input {
+    white-space: normal !important;
+    height: auto !important;
+    line-height: 1.5 !important;
+    padding: 4px 8px !important;
+}
+
+/* Cho phép select dropdown hiển thị đầy đủ */
+.ant-select-dropdown {
+    white-space: normal !important;
+}
+
+.ant-select-item-option-content {
+    white-space: normal !important;
+    word-break: break-word !important;
+}
+
+/* Style cho textarea */
+.sheet-dashboard .ant-table-cell .ant-input-textarea {
+    width: 100%;
+    min-width: 200px;
+}
+
+.sheet-data {
+    margin-top: 20px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.chart-container {
+    min-height: 400px;
+}
+
+/* Style cho input date */
+.sheet-dashboard .ant-table-cell input[type="date"] {
+    font-family: Arial, sans-serif !important;
+    padding: 4px 8px !important;
+    width: 100%;
+}
+
+/* Ẩn icon calendar mặc định của trình duyệt */
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    color: transparent;
+    cursor: pointer;
+    height: 100%;
+    position: absolute;
+    right: 0;
+    width: 100%;
+}
+
+/* Đảm bảo text ngày tháng hiển thị đầy đủ */
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-datetime-edit {
+    padding: 0;
+}
+
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+}
+
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-datetime-edit-text {
+    padding: 0 2px;
+}
+
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-datetime-edit-day-field,
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-datetime-edit-month-field,
+.sheet-dashboard .ant-table-cell input[type="date"]::-webkit-datetime-edit-year-field {
+    padding: 0;
+    text-transform: uppercase;
+}
+
+/* Style cho DatePicker */
+.sheet-dashboard .ant-picker {
+    width: 100%;
+}
+
+.sheet-dashboard .ant-picker-input > input {
+    text-align: center;
+    font-family: Arial, sans-serif;
+}
+
+/* Đảm bảo dropdown calendar hiển thị đúng */
+.ant-picker-dropdown {
+    z-index: 1050;
+}
+
+/* Tùy chỉnh kích thước và màu sắc */
+.sheet-dashboard .ant-picker-input {
+    height: 32px;
+    padding: 4px 8px;
+}
+
+/* Căn chỉnh placeholder */
+.sheet-dashboard .ant-picker-input > input::placeholder {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+/* Timeline styles */
+.vis-timeline {
+    border: 1px solid #e8e8e8;
+    background-color: #f9f9f9;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.vis-item {
+    border-color: transparent !important;
+    border-width: 0 !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    transition: none !important;
+    cursor: pointer;
+    border-radius: 4px !important;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.vis-item.vis-selected {
+    border-color: #1890ff !important;
+    border-width: 2px !important;
+    box-shadow: 0 2px 5px rgba(24, 144, 255, 0.3);
+    z-index: 10 !important;
+}
+
+.vis-item .vis-item-content {
+    padding: 0 8px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.timeline-item {
+    width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Colors for different items */
+.custom-item-0 { background-color: #FF6B6B !important; color: white !important; }
+.custom-item-1 { background-color: #4ECDC4 !important; color: white !important; }
+.custom-item-2 { background-color: #45B7D1 !important; color: white !important; }
+.custom-item-3 { background-color: #96CEB4 !important; color: black !important; }
+.custom-item-4 { background-color: #FFEEAD !important; color: black !important; }
+.custom-item-5 { background-color: #D4A5A5 !important; color: white !important; }
+.custom-item-6 { background-color: #9FA4C4 !important; color: white !important; }
+.custom-item-7 { background-color: #B5EAD7 !important; color: black !important; }
+.custom-item-8 { background-color: #E2F0CB !important; color: black !important; }
+.custom-item-9 { background-color: #C7CEEA !important; color: black !important; }
+
+/* Timeline grid lines */
+.vis-grid.vis-vertical {
+    border-left: 1px dashed #e0e0e0;
+}
+
+.vis-time-axis .vis-text {
+    color: #333;
+    padding: 3px;
+    font-size: 12px;
+}
+
+.vis-time-axis .vis-grid.vis-minor {
+    border-width: 1px;
+    border-color: #f0f0f0;
+}
+
+.vis-time-axis .vis-grid.vis-major {
+    border-width: 2px;
+    border-color: #e8e8e8;
+}
+
+/* Timeline labels */
+.vis-label .vis-inner {
+    font-weight: bold;
+    color: #333;
+} 
