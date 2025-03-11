@@ -2,11 +2,32 @@ services:
   - type: web
     name: chatbotpdf
     env: node
-    buildCommand: cd backend && npm install && npm run build
+    buildCommand: |
+      # Tạo file .env cho backend
+      echo "DATABASE_URL=postgresql://hai:qFM1FIQTZ79T2Cz92vT2QcD2hPZlgubx@dpg-cv7vaigfnakc73duj170-a/haidb" > backend/.env
+      echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> backend/.env
+      echo "GROQ_API_KEY=${GROQ_API_KEY}" >> backend/.env
+      echo "JWT_SECRET=${JWT_SECRET}" >> backend/.env
+      echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> backend/.env
+      echo "GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS}" >> backend/.env
+      
+      # Tạo file .env cho frontend
+      echo "REACT_APP_API_BASE_URL=/api" > frontend/.env
+      echo "GENERATE_SOURCEMAP=false" >> frontend/.env
+      
+      # Build ứng dụng
+      cd backend && npm install && npm run build
     startCommand: cd backend && npm start
     envVars:
       - key: DATABASE_URL
         value: postgresql://hai:qFM1FIQTZ79T2Cz92vT2QcD2hPZlgubx@dpg-cv7vaigfnakc73duj170-a/haidb
-      - key: NODE_ENV
-        value: production
-    healthCheckPath: /api/health
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CREDENTIALS
+        sync: false
