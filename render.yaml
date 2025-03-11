@@ -3,6 +3,16 @@ services:
     name: chatbotpdf
     env: node
     buildCommand: |
+      # Tạo file .env cho frontend trước
+      echo "REACT_APP_API_BASE_URL=/api" > frontend/.env
+      echo "GENERATE_SOURCEMAP=false" >> frontend/.env
+      
+      # Build frontend
+      cd frontend && npm install && npm run build
+      
+      # Quay lại thư mục gốc
+      cd ..
+      
       # Tạo file .env cho backend
       echo "DATABASE_URL=postgresql://hai:qFM1FIQTZ79T2Cz92vT2QcD2hPZlgubx@dpg-cv7vaigfnakc73duj170-a/haidb" > backend/.env
       echo "OPENAI_API_KEY=${OPENAI_API_KEY}" >> backend/.env
@@ -11,14 +21,12 @@ services:
       echo "GEMINI_API_KEY=${GEMINI_API_KEY}" >> backend/.env
       echo "GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS}" >> backend/.env
       
-      # Tạo file .env cho frontend
-      echo "REACT_APP_API_BASE_URL=/api" > frontend/.env
-      echo "GENERATE_SOURCEMAP=false" >> frontend/.env
-      
-      # Build ứng dụng
-      cd backend && npm install && npm run build
+      # Build backend
+      cd backend && npm install
     startCommand: cd backend && npm start
     envVars:
+      - key: PORT
+        value: 10000
       - key: DATABASE_URL
         value: postgresql://hai:qFM1FIQTZ79T2Cz92vT2QcD2hPZlgubx@dpg-cv7vaigfnakc73duj170-a/haidb
       - key: OPENAI_API_KEY
@@ -31,3 +39,5 @@ services:
         sync: false
       - key: GOOGLE_CREDENTIALS
         sync: false
+      - key: NODE_ENV
+        value: production
