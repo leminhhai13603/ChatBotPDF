@@ -18,17 +18,17 @@ const Login = ({ setIsAuthenticated, setUser }) => {
     
         try {
             const response = await axios.post(`${API_BASE_URL}/auth/login`, { username, password });
-            console.log("✅ Login response:", response.data); // Debug log
+            console.log("✅ Login response:", response.data); 
 
             localStorage.setItem("token", response.data.token);
             
             const userData = response.data.user;
             
             localStorage.setItem("userId", userData.id);
-            console.log("👤 Đã lưu userId:", userData.id); // Debug log
+            console.log("👤 Đã lưu userId:", userData.id); 
             
             userData.roles = Array.isArray(userData.roles) ? userData.roles : [userData.role];
-            console.log("🔑 User roles:", userData.roles); // Debug log
+            console.log("🔑 User roles:", userData.roles); 
             
             setUser(userData); 
             setIsAuthenticated(true);
