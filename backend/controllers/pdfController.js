@@ -6,6 +6,20 @@ const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const pdfParse = require("pdf-parse");
 const pool = require("../config/db");
 const chatModel = require("../models/chatModel");
+const PDFTableExtractor = require('pdf-table-extractor');
+const fs = require('fs').promises;
+const path = require('path');
+const PDFParser = require('pdf2json');
+
+// Hàm dọn dẹp file tạm
+const cleanupTempFile = async (filePath) => {
+    try {
+        await fs.unlink(filePath);
+        console.log("✅ Đã xóa file tạm:", filePath);
+    } catch (error) {
+        console.error("⚠️ Lỗi khi xóa file tạm:", error);
+    }
+};
 
 exports.uploadPDF = async (req, res) => {
     try {
@@ -13,67 +27,108 @@ exports.uploadPDF = async (req, res) => {
             return res.status(400).json({ error: "Không có file được upload" });
         }
 
-        // Lấy tên file gốc từ form data hoặc từ originalname
-        let pdfName;
-        if (req.body.originalFileName) {
-            pdfName = req.body.originalFileName;
-        } else {
-            pdfName = decodeURIComponent(req.file.originalname);
-        }
-        
-        console.log("📄 Tên file:", {
-            original: req.file.originalname,
-            decoded: pdfName
-        });
-        
-        // Xử lý nội dung file
+        console.log("1. Bắt đầu xử lý file PDF");
+        const pdfName = req.body.originalFileName || decodeURIComponent(req.file.originalname);
         const buffer = req.file.buffer;
+        
+        // Parse text thông thường
         const data = await pdfParse(buffer);
+        let fullText = data.text
+            .replace(/\r\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n');
+            
+        console.log("2. Đã parse text thông thường");
+
+        // Xử lý bảng với PDFParser
+        const pdfParser = new PDFParser();
+        const pdfData = await new Promise((resolve, reject) => {
+            pdfParser.on("pdfParser_dataReady", resolve);
+            pdfParser.on("pdfParser_dataError", reject);
+            pdfParser.parseBuffer(buffer);
+        });
+
+        // Trích xuất bảng từ dữ liệu PDF
+        const extractedTables = [];
+        let currentTable = [];
         
-        // Xử lý text để giữ nguyên định dạng
-        const fullText = data.text
-            .replace(/\r\n/g, '\n') // Chuẩn hóa xuống dòng
-            .replace(/\n{3,}/g, '\n\n'); // Giảm số dòng trống liên tiếp
-        
-        // Lấy thông tin user từ request
+        pdfData.Pages.forEach(page => {
+            let currentY = -1;
+            let currentRow = [];
+            const texts = page.Texts.sort((a, b) => {
+                if (Math.abs(a.y - b.y) < 0.5) return a.x - b.x;
+                return a.y - b.y;
+            });
+
+            texts.forEach(text => {
+                const content = decodeURIComponent(text.R[0].T).trim();
+                
+                if (Math.abs(text.y - currentY) > 0.5) {
+                    if (currentRow.length > 0) {
+                        currentTable.push(currentRow);
+                    }
+                    currentRow = [content];
+                    currentY = text.y;
+                } else {
+                    currentRow.push(content);
+                }
+            });
+
+            if (currentRow.length > 0) {
+                currentTable.push(currentRow);
+            }
+
+            // Kiểm tra xem có phải bảng không
+            if (currentTable.length > 1 && currentTable[0].length > 1) {
+                extractedTables.push(currentTable);
+            }
+            currentTable = [];
+        });
+
+        console.log("3. Số bảng đã trích xuất:", extractedTables.length);
+        if (extractedTables.length > 0) {
+            console.log("4. Mẫu bảng đầu tiên:", extractedTables[0]);
+        }
+
+        // Lưu vào database
         const userId = req.user.id;
         const groupId = req.body.groupId;
 
-        if (!groupId) {
-            return res.status(400).json({ error: "Thiếu thông tin danh mục (groupId)" });
-        }
-
-        console.log("📤 Upload info:", {
-            fileName: pdfName,
+        const pdfId = await pdfModel.savePDFMetadata(
+            pdfName,
+            {
+                text: fullText,
+                tables: extractedTables
+            },
             userId,
-            groupId,
-            fileSize: buffer.length,
-            textLength: fullText.length
+            groupId
+        );
+
+        res.json({
+            message: "Upload thành công",
+            pdfId,
+            fileName: pdfName,
+            tablesCount: extractedTables.length
         });
 
-        // Lưu metadata và lấy ID - Trả về response trước khi xử lý embeddings
-        const pdfId = await pdfModel.savePDFMetadata(pdfName, fullText, userId, groupId);
-        
-        // Trả về response ngay lập tức
-        res.json({ 
-            message: "Upload thành công, đang xử lý văn bản...", 
-            pdfId,
-            fileName: pdfName
-        });
-        
-        // Tiếp tục xử lý embeddings trong background
+        // 4. Xử lý embeddings (bao gồm cả nội dung bảng)
         try {
-            // Tạo chunks
             const splitter = new RecursiveCharacterTextSplitter({
                 chunkSize: 1000,
                 chunkOverlap: 200,
             });
-            const docs = await splitter.createDocuments([fullText]);
+
+            // Tạo nội dung tổng hợp bao gồm cả text và bảng
+            const tableContent = extractedTables.map((table, tableIndex) => {
+                return `Bảng ${tableIndex + 1}:\n` + 
+                    table.map(row => row.join(' | ')).join('\n');
+            }).join('\n\n');
+
+            const combinedContent = `${fullText}\n\nNội dung bảng:\n${tableContent}`;
             
-            // Tạo embeddings cho từng chunk
+            const docs = await splitter.createDocuments([combinedContent]);
             const chunks = docs.map(doc => doc.pageContent);
             
-            // Xử lý embeddings theo batch để tăng tốc
+            // Xử lý embeddings theo batch
             const batchSize = 5;
             const embeddings = [];
             
@@ -86,16 +141,15 @@ exports.uploadPDF = async (req, res) => {
                 console.log(`✅ Đã xử lý ${i + batch.length}/${chunks.length} chunks`);
             }
             
-            // Lưu chunks và embeddings
             await pdfModel.savePDFChunks(pdfId, chunks, embeddings);
             console.log(`✅ Hoàn tất xử lý file ${pdfName}`);
         } catch (embeddingError) {
             console.error("❌ Lỗi khi xử lý embeddings:", embeddingError);
-            // Không ảnh hưởng đến response vì đã trả về trước đó
         }
+
     } catch (error) {
-        console.error("❌ Lỗi khi upload file:", error);
-        res.status(500).json({ 
+        console.error("❌ Lỗi tổng thể:", error);
+        res.status(500).json({
             error: "Lỗi khi upload file",
             details: error.message
         });
@@ -471,5 +525,16 @@ exports.getPDFsByCategory = async (req, res) => {
         res.status(500).json({ error: "Lỗi khi lấy danh sách PDF" });
     } finally {
         client.release();
+    }
+};
+
+exports.getPDFTables = async (req, res) => {
+    try {
+        const pdfId = req.params.id;
+        const tables = await pdfModel.getPDFTables(pdfId);
+        res.json({ tables });
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy bảng:", error);
+        res.status(500).json({ error: "Lỗi khi lấy bảng" });
     }
 };

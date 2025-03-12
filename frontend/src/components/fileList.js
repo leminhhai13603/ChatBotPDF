@@ -210,13 +210,37 @@ const FileList = ({ refresh }) => {
       .replace(/\n/g, '<br/>'); 
   };
 
-  const FileContent = ({ content }) => {
-    if (!content) return <div className="file-content">Không có nội dung</div>;
-    
+  const FileContent = ({ content, tables }) => {
+    if (!content && (!tables || tables.length === 0)) {
+      return <div className="file-content">Không có nội dung</div>;
+    }
+
     return (
-      <pre className="file-content">
-        {content}
-      </pre>
+      <div className="file-content">
+        <pre className="text-content">{content}</pre>
+
+        {tables && tables.length > 0 && (
+          <div className="tables-section">
+            <h4>Bảng dữ liệu:</h4>
+            {tables.map((table, tableIndex) => (
+              <div key={tableIndex} className="table-wrapper">
+                <h5>Bảng {tableIndex + 1}</h5>
+                <table className="data-table">
+                  <tbody>
+                    {table.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {row.map((cell, cellIndex) => (
+                          <td key={cellIndex}>{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -241,7 +265,10 @@ const FileList = ({ refresh }) => {
                 <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
                 <p><strong>Thời gian:</strong> {new Date(selectedFile.uploaded_at).toLocaleString('vi-VN')}</p>
               </div>
-              <FileContent content={selectedFile.full_text} />
+              <FileContent 
+                content={selectedFile.full_text} 
+                tables={selectedFile.tables || []} 
+              />
             </>
           )}
         </div>

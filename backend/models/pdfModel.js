@@ -1,33 +1,54 @@
 const pool = require("../config/db");
 
 // ✅ Lưu metadata file PDF vào bảng pdf_files
-exports.savePDFMetadata = async (pdfName, fullText, uploadedBy, groupId) => {
+exports.savePDFMetadata = async (pdfName, pdfData, uploadedBy, groupId) => {
     const client = await pool.connect();
     try {
-        // Kiểm tra file đã tồn tại chưa
+        console.log("Model - Bắt đầu lưu metadata");
+        console.log("Data nhận được:", {
+            pdfName,
+            textLength: pdfData.text.length,
+            tablesCount: pdfData.tables?.length || 0
+        });
+
         const checkQuery = `SELECT id FROM pdf_files WHERE pdf_name = $1 AND group_id = $2`;
         const checkResult = await client.query(checkQuery, [pdfName, groupId]);
 
         if (checkResult.rows.length > 0) {
-            console.log(`⚠️ File ${pdfName} đã tồn tại trong nhóm ${groupId}.`);
+            console.log(`File ${pdfName} đã tồn tại trong nhóm ${groupId}`);
             return checkResult.rows[0].id;
         }
 
-        // Nếu chưa tồn tại, thêm mới với full_text, uploaded_by và group_id
+        // Đảm bảo tables là mảng hợp lệ
+        const tables = Array.isArray(pdfData.tables) ? pdfData.tables : [];
+        
         const insertQuery = `
-            INSERT INTO pdf_files (pdf_name, uploaded_at, full_text, uploaded_by, group_id)
-            VALUES ($1, NOW(), $2, $3, $4)
+            INSERT INTO pdf_files (
+                pdf_name, uploaded_at, full_text, 
+                uploaded_by, group_id, tables
+            )
+            VALUES ($1, NOW(), $2, $3, $4, $5::jsonb)
             RETURNING id;
         `;
         
-        const sanitizedText = fullText
-            .replace(/\u0000/g, '') 
+        const sanitizedText = pdfData.text
+            .replace(/\u0000/g, '')
             .replace(/\r\n/g, '\n');
-            
-        const result = await client.query(insertQuery, [pdfName, sanitizedText, uploadedBy, groupId]);
+
+        console.log("Tables trước khi lưu:", tables);
+        
+        const result = await client.query(insertQuery, [
+            pdfName,
+            sanitizedText,
+            uploadedBy,
+            groupId,
+            JSON.stringify(tables)
+        ]);
+
+        console.log("Đã insert thành công với ID:", result.rows[0].id);
         return result.rows[0].id;
     } catch (error) {
-        console.error("❌ Lỗi khi lưu metadata file PDF:", error);
+        console.error("❌ Lỗi chi tiết khi lưu metadata:", error);
         throw error;
     } finally {
         client.release();
@@ -94,9 +115,9 @@ exports.getAllPDFs = async (userId, userRoles) => {
         let query;
         
         if (isAdmin) {
-            // Admin có thể xem tất cả file
             query = `
-                SELECT pf.id, pf.pdf_name, pf.uploaded_at, pf.full_text, pf.group_id,
+                SELECT pf.id, pf.pdf_name, pf.uploaded_at, pf.full_text, 
+                       pf.group_id, pf.tables,
                        u.username as uploader_name
                 FROM pdf_files pf
                 LEFT JOIN users u ON pf.uploaded_by = u.id
@@ -105,9 +126,9 @@ exports.getAllPDFs = async (userId, userRoles) => {
             const result = await client.query(query);
             return result.rows;
         } else {
-            // User thường chỉ xem được file của nhóm mình
             query = `
-                SELECT pf.id, pf.pdf_name, pf.uploaded_at, pf.full_text, pf.group_id,
+                SELECT pf.id, pf.pdf_name, pf.uploaded_at, pf.full_text, 
+                       pf.group_id, pf.tables,
                        u.username as uploader_name
                 FROM pdf_files pf
                 LEFT JOIN users u ON pf.uploaded_by = u.id
@@ -438,6 +459,25 @@ exports.getPDFsByCategory = async (categoryId, userId, userRoles) => {
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách PDF theo category:", error);
         throw error;
+    } finally {
+        client.release();
+    }
+};
+
+// Thêm hàm lấy bảng
+exports.getPDFTables = async (pdfId) => {
+    const client = await pool.connect();
+    try {
+        const query = `
+            SELECT tables 
+            FROM pdf_files 
+            WHERE id = $1
+        `;
+        const result = await client.query(query, [pdfId]);
+        return result.rows[0]?.tables || [];
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy bảng:", error);
+        return [];
     } finally {
         client.release();
     }

@@ -21,4 +21,6 @@ router.post("/reprocess/:id", pdfController.reprocessPDF);
 router.get("/details/:id", pdfController.getPDFDetails);
 router.get("/category/:categoryId?", pdfController.getPDFsByCategory);
 
+router.get("/tables/:id", pdfController.getPDFTables);
+
 module.exports = router;
