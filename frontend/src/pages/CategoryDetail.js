@@ -21,6 +21,7 @@ const CategoryDetail = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState("");
 
     const getCategoryWithAccents = (categoryParam) => {
         const categoryMap = {
@@ -56,15 +57,27 @@ const CategoryDetail = () => {
     }, [category]);
 
     const handleUpload = async (file) => {
-        if (file.type !== "application/pdf") {
-            message.error("Vui lòng chọn file PDF!");
+        if (!file) {
+            message.error("Vui lòng chọn file!");
+            return false;
+        }
+
+        const fileType = file.type;
+        const fileName = file.name.toLowerCase();
+
+        if (!(fileType === "application/pdf" || 
+            fileType === "text/csv" || 
+            fileName.endsWith('.csv'))) {
+            message.error("Vui lòng chọn file PDF hoặc CSV!");
             return false;
         }
 
         setUploading(true);
+        setError("");
+        
         try {
             const formData = new FormData();
-            formData.append("pdf", file);
+            formData.append("file", file);
             formData.append("originalFileName", file.name);
             formData.append("subCategory", decodeURIComponent(category));
 
@@ -80,12 +93,14 @@ const CategoryDetail = () => {
                 }
             );
 
-            console.log("✅ Upload response:", response.data);
+            console.log("✅ Upload thành công:", response.data);
             message.success("Upload file thành công!");
             fetchPosts(category);
         } catch (error) {
-            console.error("❌ Lỗi khi upload:", error.response?.data || error);
-            message.error(error.response?.data?.error || "Lỗi khi upload file!");
+            console.error("❌ Lỗi khi upload:", error);
+            const errorMessage = error.response?.data?.error || "Lỗi khi upload file!";
+            message.error(errorMessage);
+            setError(errorMessage);
         } finally {
             setUploading(false);
         }
@@ -117,7 +132,7 @@ const CategoryDetail = () => {
                         <Title level={2}>{getCategoryWithAccents(category)}</Title>
                     </div>
                     <Upload
-                        accept=".pdf"
+                        accept=".pdf,.csv"
                         showUploadList={false}
                         beforeUpload={handleUpload}
                         disabled={uploading}
@@ -131,6 +146,8 @@ const CategoryDetail = () => {
                         </Button>
                     </Upload>
                 </Space>
+
+                {error && <div className="alert alert-danger">{error}</div>}
 
                 {loading ? (
                     <Row gutter={[16, 16]}>
