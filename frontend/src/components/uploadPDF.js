@@ -13,7 +13,6 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
 
   useEffect(() => {
     fetchUserRoles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUserRoles = async () => {
@@ -35,19 +34,30 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
+    if (!selectedFile) {
+      setFile(null);
+      setError("Vui lòng chọn file!");
+      return;
+    }
+
+    const fileType = selectedFile.type;
+    const fileName = selectedFile.name.toLowerCase();
+
+    if (fileType === "application/pdf" || 
+        fileType === "text/csv" || 
+        fileName.endsWith('.csv')) {
       setFile(selectedFile);
       setError("");
     } else {
       setFile(null);
-      setError("Vui lòng chọn file PDF!");
+      setError("Vui lòng chọn file PDF hoặc CSV!");
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError("Vui lòng chọn file PDF!");
+      setError("Vui lòng chọn file!");
       return;
     }
 
@@ -61,19 +71,9 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
 
     try {
       const formData = new FormData();
-      
-      const fileBlob = new Blob([file], { type: file.type });
-      formData.append("pdf", fileBlob, encodeURIComponent(file.name));
-      
-      formData.append("originalFileName", file.name); 
+      formData.append("file", file);
+      formData.append("originalFileName", file.name);
       formData.append("groupId", selectedRole);
-
-      console.log("📤 Uploading file:", {
-        fileName: file.name,
-        encodedName: encodeURIComponent(file.name),
-        groupId: selectedRole,
-        fileSize: file.size
-      });
 
       const token = localStorage.getItem("token");
       const response = await axios.post(`${API_BASE_URL}/pdf/upload`, formData, {
@@ -83,8 +83,12 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
         },
       });
 
-      console.log("✅ Upload success:", response.data);
+      console.log("✅ Upload thành công:", response.data);
       onUploadSuccess();
+      
+      // Reset form
+      setFile(null);
+      e.target.reset();
     } catch (error) {
       console.error("❌ Lỗi khi upload file:", error);
       setError(
@@ -99,11 +103,11 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
     <div className="upload-container">
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
-          <label className="form-label">📁 Chọn file PDF:</label>
+          <label className="form-label">📁 Chọn file PDF hoặc CSV:</label>
           <input
             type="file"
             className="form-control"
-            accept=".pdf"
+            accept=".pdf,.csv"
             onChange={handleFileChange}
             disabled={uploading}
           />
@@ -139,7 +143,9 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
               Đang upload...
             </>
           ) : (
-            "📤 Upload"
+            <>
+              📤 Upload
+            </>
           )}
         </button>
       </form>

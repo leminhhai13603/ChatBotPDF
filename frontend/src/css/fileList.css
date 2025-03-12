@@ -238,3 +238,134 @@
 .file-list-table-wrapper {
     overflow: visible;
 }
+
+.csv-viewer {
+    padding: 20px;
+    background: #fff;
+}
+
+.csv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.csv-table th,
+.csv-table td {
+    border: 1px solid #dee2e6;
+    padding: 12px 15px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.csv-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Định dạng các cột */
+.csv-table .col-0 { /* GIAI ĐOẠN */
+    width: 15%;
+}
+
+.csv-table .col-1 { /* BƯỚC */
+    width: 15%;
+}
+
+.csv-table .col-2 { /* NGƯỜI LEAD */
+    width: 15%;
+}
+
+/* Các cột khác */
+.csv-table td {
+    line-height: 1.5;
+}
+
+/* Style cho cell có nhiều dòng */
+.csv-table td p {
+    margin: 0 0 10px 0;
+}
+
+.csv-table td:last-child p {
+    margin-bottom: 0;
+}
+
+/* Hover effect */
+.csv-table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+    .csv-viewer {
+        padding: 10px;
+    }
+    
+    .csv-table th,
+    .csv-table td {
+        padding: 8px 10px;
+    }
+}
+
+.ascii-table {
+    font-family: 'Courier New', Courier, monospace;
+    white-space: pre;
+    overflow-x: auto;
+    padding: 20px;
+    background: #fff;
+    font-size: 14px;
+    line-height: 1.2;
+}
+
+.ascii-table pre {
+    margin: 0;
+    tab-size: 4;
+}
+
+/* Đảm bảo các ký tự đặc biệt hiển thị đúng */
+.ascii-table pre {
+    font-variant-ligatures: none;
+}
+
+/* Tối ưu cho màn hình lớn */
+@media screen and (min-width: 1200px) {
+    .ascii-table {
+        font-size: 13px;
+        tab-size: 8;
+    }
+}
+
+/* Tối ưu cho màn hình nhỏ */
+@media screen and (max-width: 768px) {
+    .ascii-table {
+        font-size: 12px;
+        tab-size: 2;
+    }
+}
+
+/* Đảm bảo bảng không bị vỡ */
+.file-content.ascii-table {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* Style cho scrollbar */
+.ascii-table::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.ascii-table::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.ascii-table::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.ascii-table::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

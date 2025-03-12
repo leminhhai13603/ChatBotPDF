@@ -6,10 +6,8 @@ const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const pdfParse = require("pdf-parse");
 const pool = require("../config/db");
 const chatModel = require("../models/chatModel");
-const PDFTableExtractor = require('pdf-table-extractor');
 const fs = require('fs').promises;
-const path = require('path');
-const PDFParser = require('pdf2json');
+const csv = require('csv-parse/sync');
 
 // Hàm dọn dẹp file tạm
 const cleanupTempFile = async (filePath) => {
@@ -21,83 +19,133 @@ const cleanupTempFile = async (filePath) => {
     }
 };
 
-exports.uploadPDF = async (req, res) => {
+exports.uploadFile = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: "Không có file được upload" });
         }
 
-        console.log("1. Bắt đầu xử lý file PDF");
-        const pdfName = req.body.originalFileName || decodeURIComponent(req.file.originalname);
+        const fileName = req.body.originalFileName || decodeURIComponent(req.file.originalname);
         const buffer = req.file.buffer;
+        const fileType = fileName.toLowerCase().endsWith('.pdf') ? 'pdf' : 'csv';
         
-        // Parse text thông thường
-        const data = await pdfParse(buffer);
-        let fullText = data.text
-            .replace(/\r\n/g, '\n')
-            .replace(/\n{3,}/g, '\n\n');
+        let fullText = '';
+
+        if (fileType === 'csv') {
+            const csvString = buffer.toString('utf-8');
             
-        console.log("2. Đã parse text thông thường");
-
-        // Xử lý bảng với PDFParser
-        const pdfParser = new PDFParser();
-        const pdfData = await new Promise((resolve, reject) => {
-            pdfParser.on("pdfParser_dataReady", resolve);
-            pdfParser.on("pdfParser_dataError", reject);
-            pdfParser.parseBuffer(buffer);
-        });
-
-        // Trích xuất bảng từ dữ liệu PDF
-        const extractedTables = [];
-        let currentTable = [];
-        
-        pdfData.Pages.forEach(page => {
-            let currentY = -1;
-            let currentRow = [];
-            const texts = page.Texts.sort((a, b) => {
-                if (Math.abs(a.y - b.y) < 0.5) return a.x - b.x;
-                return a.y - b.y;
-            });
-
-            texts.forEach(text => {
-                const content = decodeURIComponent(text.R[0].T).trim();
+            // Parse CSV với xử lý đặc biệt cho multiline cells
+            const parseCSV = (text) => {
+                const rows = [];
+                let currentRow = [];
+                let currentCell = '';
+                let insideQuotes = false;
                 
-                if (Math.abs(text.y - currentY) > 0.5) {
-                    if (currentRow.length > 0) {
-                        currentTable.push(currentRow);
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    const nextChar = text[i + 1];
+                    
+                    if (char === '"') {
+                        if (insideQuotes && nextChar === '"') {
+                            // Handle escaped quotes
+                            currentCell += '"';
+                            i++;
+                        } else {
+                            // Toggle quote mode
+                            insideQuotes = !insideQuotes;
+                        }
+                    } else if (char === ',' && !insideQuotes) {
+                        // End of cell
+                        currentRow.push(currentCell.trim());
+                        currentCell = '';
+                    } else if (char === '\n' && !insideQuotes) {
+                        // End of row
+                        currentRow.push(currentCell.trim());
+                        rows.push(currentRow);
+                        currentRow = [];
+                        currentCell = '';
+                    } else {
+                        currentCell += char;
                     }
-                    currentRow = [content];
-                    currentY = text.y;
-                } else {
-                    currentRow.push(content);
                 }
+                
+                // Handle last cell/row
+                if (currentCell) {
+                    currentRow.push(currentCell.trim());
+                }
+                if (currentRow.length) {
+                    rows.push(currentRow);
+                }
+                
+                return rows;
+            };
+
+            const rows = parseCSV(csvString);
+            
+            // Tìm chiều rộng tối đa cho mỗi cột
+            const columnWidths = [];
+            rows.forEach(row => {
+                row.forEach((cell, i) => {
+                    // Tính chiều rộng thực của cell (kể cả khi có nhiều dòng)
+                    const cellLines = cell.split('\n');
+                    const cellWidth = Math.max(...cellLines.map(line => line.length));
+                    columnWidths[i] = Math.max(columnWidths[i] || 0, cellWidth);
+                });
             });
 
-            if (currentRow.length > 0) {
-                currentTable.push(currentRow);
+            // Tạo hàm helper để tạo border
+            const createBorder = () => 
+                '+' + columnWidths.map(w => '-'.repeat(w + 2)).join('+') + '+\n';
+
+            // Tạo hàm helper để format một dòng
+            const formatRow = (row) => {
+                const lines = row.map(cell => cell.split('\n'));
+                const maxLines = Math.max(...lines.map(cell => cell.length));
+                
+                let result = '';
+                for (let i = 0; i < maxLines; i++) {
+                    result += '|';
+                    for (let j = 0; j < row.length; j++) {
+                        const content = (lines[j][i] || '').padEnd(columnWidths[j]);
+                        result += ` ${content} |`;
+                    }
+                    result += '\n';
+                }
+                return result;
+            };
+
+            // Tạo ASCII table
+            let table = '';
+            table += createBorder();
+            
+            // Header
+            table += formatRow(rows[0]);
+            table += createBorder();
+            
+            // Data rows
+            for (let i = 1; i < rows.length; i++) {
+                table += formatRow(rows[i]);
+                table += createBorder();
             }
 
-            // Kiểm tra xem có phải bảng không
-            if (currentTable.length > 1 && currentTable[0].length > 1) {
-                extractedTables.push(currentTable);
-            }
-            currentTable = [];
-        });
-
-        console.log("3. Số bảng đã trích xuất:", extractedTables.length);
-        if (extractedTables.length > 0) {
-            console.log("4. Mẫu bảng đầu tiên:", extractedTables[0]);
+            fullText = table;
+        } else {
+            const data = await pdfParse(buffer);
+            fullText = data.text
+                .replace(/\r\n/g, '\n')
+                .replace(/\n{3,}/g, '\n\n');
         }
 
         // Lưu vào database
         const userId = req.user.id;
         const groupId = req.body.groupId;
 
-        const pdfId = await pdfModel.savePDFMetadata(
-            pdfName,
+        const fileId = await pdfModel.savePDFMetadata(
+            fileName,
             {
                 text: fullText,
-                tables: extractedTables
+                fileType: fileType,
+                originalFile: buffer
             },
             userId,
             groupId
@@ -105,30 +153,20 @@ exports.uploadPDF = async (req, res) => {
 
         res.json({
             message: "Upload thành công",
-            pdfId,
-            fileName: pdfName,
-            tablesCount: extractedTables.length
+            fileId,
+            fileName: fileName
         });
 
-        // 4. Xử lý embeddings (bao gồm cả nội dung bảng)
+        // Xử lý embeddings
         try {
             const splitter = new RecursiveCharacterTextSplitter({
                 chunkSize: 1000,
                 chunkOverlap: 200,
             });
-
-            // Tạo nội dung tổng hợp bao gồm cả text và bảng
-            const tableContent = extractedTables.map((table, tableIndex) => {
-                return `Bảng ${tableIndex + 1}:\n` + 
-                    table.map(row => row.join(' | ')).join('\n');
-            }).join('\n\n');
-
-            const combinedContent = `${fullText}\n\nNội dung bảng:\n${tableContent}`;
             
-            const docs = await splitter.createDocuments([combinedContent]);
+            const docs = await splitter.createDocuments([fullText]);
             const chunks = docs.map(doc => doc.pageContent);
             
-            // Xử lý embeddings theo batch
             const batchSize = 5;
             const embeddings = [];
             
@@ -141,14 +179,14 @@ exports.uploadPDF = async (req, res) => {
                 console.log(`✅ Đã xử lý ${i + batch.length}/${chunks.length} chunks`);
             }
             
-            await pdfModel.savePDFChunks(pdfId, chunks, embeddings);
-            console.log(`✅ Hoàn tất xử lý file ${pdfName}`);
+            await pdfModel.savePDFChunks(fileId, chunks, embeddings);
+            console.log(`✅ Hoàn tất xử lý file ${fileName}`);
         } catch (embeddingError) {
             console.error("❌ Lỗi khi xử lý embeddings:", embeddingError);
         }
 
     } catch (error) {
-        console.error("❌ Lỗi tổng thể:", error);
+        console.error("❌ Lỗi chi tiết:", error);
         res.status(500).json({
             error: "Lỗi khi upload file",
             details: error.message
@@ -161,13 +199,35 @@ exports.getAllPDFs = async (req, res) => {
         const userId = req.user.id;
         const userRoles = req.user.roles || [];
         
+        console.log("🔍 Đang lấy danh sách file cho user:", {
+            userId,
+            roles: userRoles
+        });
+        
         const files = await pdfModel.getAllPDFs(userId, userRoles);
+        
+        console.log(`✅ Đã tìm thấy ${files.length} file`);
+        
         res.json({
-            files: files
+            success: true,
+            files: files.map(file => ({
+                id: file.id,
+                pdf_name: file.pdf_name,
+                uploaded_at: file.uploaded_at,
+                full_text: file.full_text,
+                group_id: file.group_id,
+                group_name: file.group_name,
+                file_type: file.file_type || 'pdf',
+                uploader_name: file.uploader_name
+            }))
         });
     } catch (error) {
-        console.error("❌ Lỗi khi lấy danh sách PDF:", error);
-        res.status(500).json({ error: "Lỗi khi lấy danh sách file" });
+        console.error("❌ Lỗi khi lấy danh sách file:", error);
+        res.status(500).json({ 
+            success: false,
+            error: "Lỗi khi lấy danh sách file",
+            message: error.message 
+        });
     }
 };
 
@@ -525,16 +585,5 @@ exports.getPDFsByCategory = async (req, res) => {
         res.status(500).json({ error: "Lỗi khi lấy danh sách PDF" });
     } finally {
         client.release();
-    }
-};
-
-exports.getPDFTables = async (req, res) => {
-    try {
-        const pdfId = req.params.id;
-        const tables = await pdfModel.getPDFTables(pdfId);
-        res.json({ tables });
-    } catch (error) {
-        console.error("❌ Lỗi khi lấy bảng:", error);
-        res.status(500).json({ error: "Lỗi khi lấy bảng" });
     }
 };

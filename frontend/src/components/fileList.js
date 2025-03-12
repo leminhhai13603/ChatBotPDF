@@ -69,11 +69,16 @@ const FileList = ({ refresh }) => {
       const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      console.log("📂 Files from API:", response.data.files); 
-      setFiles(response.data.files);
-      setFilteredFiles(response.data.files);
+      
+      if (response.data.success) {
+        console.log("📂 Files từ API:", response.data.files);
+        setFiles(response.data.files);
+        setFilteredFiles(response.data.files);
+      } else {
+        console.error("❌ Lỗi:", response.data.error);
+      }
     } catch (error) {
-      console.error("❌ Lỗi khi tải danh sách file:", error);
+      console.error("❌ Lỗi khi tải danh sách file:", error.response?.data || error.message);
     }
   };
 
@@ -210,37 +215,23 @@ const FileList = ({ refresh }) => {
       .replace(/\n/g, '<br/>'); 
   };
 
-  const FileContent = ({ content, tables }) => {
-    if (!content && (!tables || tables.length === 0)) {
-      return <div className="file-content">Không có nội dung</div>;
+  const FileContent = ({ content, fileType }) => {
+    if (!content) {
+        return <div className="file-content">Không có nội dung</div>;
+    }
+
+    if (fileType === 'csv') {
+        return (
+            <div className="file-content ascii-table">
+                <pre>{content}</pre>
+            </div>
+        );
     }
 
     return (
-      <div className="file-content">
-        <pre className="text-content">{content}</pre>
-
-        {tables && tables.length > 0 && (
-          <div className="tables-section">
-            <h4>Bảng dữ liệu:</h4>
-            {tables.map((table, tableIndex) => (
-              <div key={tableIndex} className="table-wrapper">
-                <h5>Bảng {tableIndex + 1}</h5>
-                <table className="data-table">
-                  <tbody>
-                    {table.map((row, rowIndex) => (
-                      <tr key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <td key={cellIndex}>{cell}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        <div className="file-content">
+            <pre className="text-content">{content}</pre>
+        </div>
     );
   };
 
@@ -264,10 +255,11 @@ const FileList = ({ refresh }) => {
               <div className="file-info">
                 <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
                 <p><strong>Thời gian:</strong> {new Date(selectedFile.uploaded_at).toLocaleString('vi-VN')}</p>
+                <p><strong>Loại file:</strong> {selectedFile.file_type?.toUpperCase() || 'PDF'}</p>
               </div>
               <FileContent 
-                content={selectedFile.full_text} 
-                tables={selectedFile.tables || []} 
+                content={selectedFile.full_text}
+                fileType={selectedFile.file_type} 
               />
             </>
           )}
@@ -305,19 +297,22 @@ const FileList = ({ refresh }) => {
             <thead>
               <tr>
                 <th>Tên file</th>
+                <th>Loại</th>
                 <th>Người upload</th>
                 <th>Ngày upload</th>
+                <th>Nhóm</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {currentFiles.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center">Không có file nào</td>
+                  <td colSpan="5" className="text-center">Không có file nào</td>
                 </tr>
               ) : (
                 currentFiles.map((file) => {
                   const uploadDate = new Date(file.uploaded_at).toLocaleDateString('vi-VN');
+                  const fileType = file.file_type?.toUpperCase() || 'PDF';
                   
                   return (
                     <tr key={file.id} className={selectedFile?.id === file.id ? "selected-row" : ""}>
@@ -330,15 +325,17 @@ const FileList = ({ refresh }) => {
                           {truncateFileName(file.pdf_name)}
                         </span>
                       </td>
+                      <td>{fileType}</td>
                       <td>{file.uploader_name}</td>
                       <td>{uploadDate}</td>
+                      <td>{file.group_name}</td>
                       <td className="action-column">
                         <button 
                           className="btn-delete" 
                           onClick={() => confirmDelete(file)}
                           title="Xóa file"
                         >
-                          🗑️Xoá
+                          🗑️ Xoá
                         </button>
                       </td>
                     </tr>
