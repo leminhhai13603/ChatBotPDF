@@ -6,14 +6,6 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId) => {
     try {
         console.log("📝 Bắt đầu lưu file");
         
-        // Log dữ liệu trước khi lưu
-        console.log("📊 Kiểm tra dữ liệu trước khi lưu:", {
-            fileName,
-            fileType: fileData.fileType,
-            textPreview: fileData.text.substring(0, 200), // Xem 200 ký tự đầu
-            textLines: fileData.text.split('\n').length // Số dòng
-        });
-
         const checkQuery = `SELECT id FROM pdf_files WHERE pdf_name = $1 AND group_id = $2`;
         const checkResult = await client.query(checkQuery, [fileName, groupId]);
 
@@ -32,14 +24,9 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId) => {
             RETURNING id;
         `;
         
-        // Không thay đổi text với CSV
-        const sanitizedText = fileData.fileType === 'csv' 
-            ? fileData.text 
-            : fileData.text.replace(/\u0000/g, '').replace(/\r\n/g, '\n');
-
         const result = await client.query(insertQuery, [
             fileName,
-            sanitizedText,
+            fileData.text,
             uploadedBy,
             groupId,
             fileData.fileType,
@@ -59,6 +46,11 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId) => {
 exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
     const client = await pool.connect();
     try {
+        // Kiểm tra file type
+        const fileTypeQuery = `SELECT file_type FROM pdf_files WHERE id = $1`;
+        const fileTypeResult = await client.query(fileTypeQuery, [pdfId]);
+        const fileType = fileTypeResult.rows[0]?.file_type;
+
         const insertQuery = `
             INSERT INTO pdf_chunks (
                 pdf_id, content, embedding, 
@@ -75,13 +67,21 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
                 console.error(`⚠️ Lỗi dữ liệu embedding:`, embeddings[i]);
                 throw new Error(`Embedding tại index ${i} không phải là mảng!`);
             }
-            const chunkMetadata = metadata[i] || {
+
+            // Xử lý metadata khác nhau cho CSV và PDF
+            const chunkMetadata = fileType === 'csv' ? {
+                chunk_index: i,
+                section_title: `Dòng ${i * 3 + 1} - ${Math.min((i + 1) * 3, chunks.length)}`,
+                is_title_chunk: i === 0, // Dòng đầu thường là header
+                keywords: extractKeywordsFromCSV(chunks[i]),
+                chunk_length: chunks[i].length
+            } : (metadata[i] || {
                 chunk_index: i,
                 section_title: "Không xác định",
                 is_title_chunk: false,
                 keywords: [],
                 chunk_length: chunks[i].length
-            };
+            });
             
             const embeddingStr = `[${embeddings[i].join(",")}]`;
             
@@ -106,6 +106,16 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
     } finally {
         client.release();
     }
+};
+
+// Hàm helper để trích xuất keywords từ chunk CSV
+const extractKeywordsFromCSV = (chunk) => {
+    const words = chunk.split(/[\s,|]+/);
+    return words.filter(word => 
+        word.length > 3 && 
+        !word.match(/^\d+$/) && 
+        !word.match(/^[A-Z\s]+$/)
+    ).slice(0, 5);
 };
 
 // ✅ Lấy danh sách tất cả file PDF

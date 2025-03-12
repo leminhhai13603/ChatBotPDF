@@ -30,6 +30,7 @@ exports.uploadFile = async (req, res) => {
         const fileType = fileName.toLowerCase().endsWith('.pdf') ? 'pdf' : 'csv';
         
         let fullText = '';
+        let chunks = [];
 
         if (fileType === 'csv') {
             const csvString = buffer.toString('utf-8');
@@ -47,19 +48,15 @@ exports.uploadFile = async (req, res) => {
                     
                     if (char === '"') {
                         if (insideQuotes && nextChar === '"') {
-                            // Handle escaped quotes
                             currentCell += '"';
                             i++;
                         } else {
-                            // Toggle quote mode
                             insideQuotes = !insideQuotes;
                         }
                     } else if (char === ',' && !insideQuotes) {
-                        // End of cell
                         currentRow.push(currentCell.trim());
                         currentCell = '';
                     } else if (char === '\n' && !insideQuotes) {
-                        // End of row
                         currentRow.push(currentCell.trim());
                         rows.push(currentRow);
                         currentRow = [];
@@ -69,7 +66,6 @@ exports.uploadFile = async (req, res) => {
                     }
                 }
                 
-                // Handle last cell/row
                 if (currentCell) {
                     currentRow.push(currentCell.trim());
                 }
@@ -82,22 +78,19 @@ exports.uploadFile = async (req, res) => {
 
             const rows = parseCSV(csvString);
             
-            // Tìm chiều rộng tối đa cho mỗi cột
+            // Tạo ASCII table để hiển thị
             const columnWidths = [];
             rows.forEach(row => {
                 row.forEach((cell, i) => {
-                    // Tính chiều rộng thực của cell (kể cả khi có nhiều dòng)
                     const cellLines = cell.split('\n');
                     const cellWidth = Math.max(...cellLines.map(line => line.length));
                     columnWidths[i] = Math.max(columnWidths[i] || 0, cellWidth);
                 });
             });
 
-            // Tạo hàm helper để tạo border
             const createBorder = () => 
                 '+' + columnWidths.map(w => '-'.repeat(w + 2)).join('+') + '+\n';
 
-            // Tạo hàm helper để format một dòng
             const formatRow = (row) => {
                 const lines = row.map(cell => cell.split('\n'));
                 const maxLines = Math.max(...lines.map(cell => cell.length));
@@ -117,23 +110,36 @@ exports.uploadFile = async (req, res) => {
             // Tạo ASCII table
             let table = '';
             table += createBorder();
-            
-            // Header
             table += formatRow(rows[0]);
             table += createBorder();
             
-            // Data rows
             for (let i = 1; i < rows.length; i++) {
                 table += formatRow(rows[i]);
                 table += createBorder();
             }
 
             fullText = table;
+
+            // Chia chunks theo nhóm 3 dòng cho CSV
+            for (let i = 0; i < rows.length; i += 3) {
+                const chunkRows = rows.slice(i, Math.min(i + 3, rows.length));
+                const chunk = chunkRows.map(row => row.join(' | ')).join('\n');
+                chunks.push(chunk);
+            }
         } else {
             const data = await pdfParse(buffer);
             fullText = data.text
                 .replace(/\r\n/g, '\n')
                 .replace(/\n{3,}/g, '\n\n');
+
+            // Chia chunks cho PDF
+            const splitter = new RecursiveCharacterTextSplitter({
+                chunkSize: 1000,
+                chunkOverlap: 200,
+            });
+            
+            const docs = await splitter.createDocuments([fullText]);
+            chunks = docs.map(doc => doc.pageContent);
         }
 
         // Lưu vào database
@@ -151,39 +157,27 @@ exports.uploadFile = async (req, res) => {
             groupId
         );
 
+        // Tạo embeddings cho chunks
+        const batchSize = 5;
+        const embeddings = [];
+        
+        for (let i = 0; i < chunks.length; i += batchSize) {
+            const batch = chunks.slice(i, i + batchSize);
+            const batchEmbeddings = await Promise.all(
+                batch.map(chunk => openaiService.generateEmbedding(chunk))
+            );
+            embeddings.push(...batchEmbeddings);
+            console.log(`✅ Đã xử lý ${i + batch.length}/${chunks.length} chunks`);
+        }
+        
+        await pdfModel.savePDFChunks(fileId, chunks, embeddings);
+        console.log(`✅ Hoàn tất xử lý file ${fileName}`);
+
         res.json({
             message: "Upload thành công",
             fileId,
             fileName: fileName
         });
-
-        // Xử lý embeddings
-        try {
-            const splitter = new RecursiveCharacterTextSplitter({
-                chunkSize: 1000,
-                chunkOverlap: 200,
-            });
-            
-            const docs = await splitter.createDocuments([fullText]);
-            const chunks = docs.map(doc => doc.pageContent);
-            
-            const batchSize = 5;
-            const embeddings = [];
-            
-            for (let i = 0; i < chunks.length; i += batchSize) {
-                const batch = chunks.slice(i, i + batchSize);
-                const batchEmbeddings = await Promise.all(
-                    batch.map(chunk => openaiService.generateEmbedding(chunk))
-                );
-                embeddings.push(...batchEmbeddings);
-                console.log(`✅ Đã xử lý ${i + batch.length}/${chunks.length} chunks`);
-            }
-            
-            await pdfModel.savePDFChunks(fileId, chunks, embeddings);
-            console.log(`✅ Hoàn tất xử lý file ${fileName}`);
-        } catch (embeddingError) {
-            console.error("❌ Lỗi khi xử lý embeddings:", embeddingError);
-        }
 
     } catch (error) {
         console.error("❌ Lỗi chi tiết:", error);

@@ -81,7 +81,13 @@ const createPGVectorStore = async (userId, userRoles = []) => {
         metadataColumn: "metadata",
       },
       filter: filter,
-      similarity_threshold: 0.1, 
+      similarity_threshold: 0.1,
+      searchKwargs: {
+        k: 10,
+        fetchK: 30,
+        lambda_mult: 0.5,
+        score_threshold: 0.7
+      }
     });
   } catch (error) {
     console.error("❌ Lỗi khi tạo PGVectorStore:", error);
@@ -130,11 +136,21 @@ const createRetrievalChain = async (userId, query, userRoles) => {
     }
     
     const retriever = vectorStore.asRetriever({
-      searchType: "similarity",
+      searchType: "similarity_hybrid",
       k: 8,
       searchKwargs: {
         fetchK: 20,
         lambda_mult: 0.5,
+        score_threshold: 0.7,
+        filterFn: (doc) => {
+          const metadata = doc.metadata || {};
+          const fileType = metadata.file_type;
+          
+          if (fileType === 'csv') {
+            return doc.content.includes('|') && doc.content.includes('\n');
+          }
+          return true;
+        }
       }
     });
     
@@ -156,11 +172,22 @@ const createRetrievalChain = async (userId, query, userRoles) => {
     Dưới đây là thông tin từ tài liệu có liên quan:
     {context}
     
-    Dựa vào thông tin từ tài liệu và lịch sử hội thoại, hãy trả lời câu hỏi một cách đầy đủ và chính xác.
-    ${user.roles.includes('admin') ? 'Bạn có thể cung cấp thông tin chi tiết và kỹ thuật hơn vì người dùng có quyền admin.' : 'Hãy giữ câu trả lời ở mức độ phù hợp với vai trò của người dùng.'}
-    Nếu thông tin từ tài liệu không đủ để trả lời, hãy nói "Tôi không tìm thấy đủ thông tin trong tài liệu để trả lời câu hỏi này".
-    Trả lời ngắn gọn, đầy đủ và chính xác.
-    Nếu có thể, hãy trích dẫn nguồn tài liệu trong câu trả lời.
+    Hướng dẫn trả lời:
+    1. Nếu thông tin đến từ bảng CSV:
+       - Giữ nguyên cấu trúc bảng khi trả lời
+       - Nêu rõ các cột liên quan
+       - Trả lời ngắn gọn, đúng trọng tâm
+    
+    2. Nếu thông tin đến từ PDF:
+       - Tổng hợp thông tin từ nhiều đoạn
+       - Trích dẫn nguồn khi cần
+       - Giữ cấu trúc logic
+    
+    3. Chung:
+       - Trả lời bằng tiếng Việt
+       - Ngắn gọn, đầy đủ và chính xác
+       - Nếu không đủ thông tin, nói rõ "Tôi không tìm thấy đủ thông tin trong tài liệu"
+       - ${user.roles.includes('admin') ? 'Có thể cung cấp thông tin chi tiết hơn.' : 'Giữ câu trả lời phù hợp với vai trò.'}
     `;
     
     const chain = ConversationalRetrievalQAChain.fromLLM(
@@ -169,7 +196,16 @@ const createRetrievalChain = async (userId, query, userRoles) => {
       {
         memory,
         returnSourceDocuments: true,
-        questionGeneratorTemplate: "Dựa vào lịch sử hội thoại sau: {chat_history} và câu hỏi mới: {question}, hãy tạo ra một câu hỏi độc lập để tìm kiếm thông tin.",
+        questionGeneratorTemplate: `
+          Dựa vào lịch sử hội thoại sau: {chat_history}
+          và câu hỏi mới: {question}
+          
+          Hãy tạo ra một câu hỏi độc lập để tìm kiếm thông tin.
+          Nếu câu hỏi liên quan đến dữ liệu bảng, hãy tách thành các phần:
+          1. Tìm kiếm cột liên quan
+          2. Tìm kiếm giá trị cụ thể
+          3. Tìm kiếm mối quan hệ giữa các cột
+        `,
         qaTemplate: promptTemplate,
         outputKey: "text",
       }
@@ -197,23 +233,28 @@ const queryRetrievalChain = async (userId, query, userRoles) => {
       
       const uniqueSources = {};
       
-      result.sourceDocuments.forEach((doc, index) => {
+      result.sourceDocuments.forEach((doc) => {
         const pdfName = doc.metadata?.pdf_name || "Không xác định";
         const pdfId = doc.metadata?.pdf_id;
+        const fileType = doc.metadata?.file_type;
         
         if (!uniqueSources[pdfId]) {
           uniqueSources[pdfId] = {
             name: pdfName,
-            count: 1
+            type: fileType,
+            count: 1,
+            relevance: doc.metadata?.similarity || 0
           };
         } else {
           uniqueSources[pdfId].count++;
         }
       });
       
-      Object.keys(uniqueSources).forEach((pdfId, index) => {
-        const source = uniqueSources[pdfId];
-        formattedResult += `\n${index + 1}. ${source.name} (${source.count} đoạn)`;
+      const sortedSources = Object.entries(uniqueSources)
+        .sort(([,a], [,b]) => b.relevance - a.relevance);
+      
+      sortedSources.forEach(([pdfId, source], index) => {
+        formattedResult += `\n${index + 1}. ${source.name} (${source.type?.toUpperCase() || 'PDF'}) - ${source.count} đoạn liên quan`;
       });
     }
     
