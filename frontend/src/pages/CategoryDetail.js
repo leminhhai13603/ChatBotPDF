@@ -26,6 +26,7 @@ const CategoryDetail = () => {
     const getCategoryWithAccents = (categoryParam) => {
         const categoryMap = {
             'dinh-huong-tong-the': 'Định hướng tổng thể',
+            // Thêm các mapping khác nếu cần
         };
         return categoryMap[categoryParam] || categoryParam;
     };
@@ -52,7 +53,6 @@ const CategoryDetail = () => {
 
     useEffect(() => {
         const categoryWithAccents = getCategoryWithAccents(category);
-        console.log("Category with accents:", categoryWithAccents); 
         fetchPosts(categoryWithAccents);
     }, [category]);
 
@@ -79,7 +79,7 @@ const CategoryDetail = () => {
             const formData = new FormData();
             formData.append("file", file);
             formData.append("originalFileName", file.name);
-            formData.append("subCategory", decodeURIComponent(category));
+            formData.append("subCategory", getCategoryWithAccents(category));
 
             const token = localStorage.getItem("token");
             const response = await axios.post(
@@ -95,7 +95,9 @@ const CategoryDetail = () => {
 
             console.log("✅ Upload thành công:", response.data);
             message.success("Upload file thành công!");
-            fetchPosts(category);
+            
+            const categoryWithAccents = getCategoryWithAccents(category);
+            fetchPosts(categoryWithAccents);
         } catch (error) {
             console.error("❌ Lỗi khi upload:", error);
             const errorMessage = error.response?.data?.error || "Lỗi khi upload file!";
@@ -170,7 +172,7 @@ const CategoryDetail = () => {
                                     >
                                         <div className="blog-card-content">
                                             <Title level={4} ellipsis={{ rows: 2 }}>
-                                                {post.title.replace(/\.pdf$/i, '')}
+                                                {post.title.replace(/\.(pdf|csv)$/i, '')}
                                             </Title>
                                             
                                             <div className="blog-card-excerpt">
@@ -188,7 +190,9 @@ const CategoryDetail = () => {
                                                 </Space>
                                                 <Space>
                                                     <FileTextOutlined />
-                                                    <Text>{post.readingTime} phút đọc</Text>
+                                                    <Text>
+                                                        {post.file_type?.toUpperCase() || 'PDF'} - {post.readingTime} phút đọc
+                                                    </Text>
                                                 </Space>
                                             </Space>
                                         </div>

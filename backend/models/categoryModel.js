@@ -83,6 +83,23 @@ exports.checkCategoryHasFiles = async (id) => {
     }
 };
 
+exports.getAllPublicSpaceCategories = async () => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(`
+            SELECT id, name, description, created_at
+            FROM public_space_categories
+            ORDER BY id ASC
+        `);
+        return result.rows;
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách danh mục:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
 exports.getPublicSpaceRole = async () => {
     const client = await pool.connect();
     try {
@@ -159,6 +176,21 @@ exports.savePDFWithCategory = async (pdfData) => {
     }
 };
 
+exports.updatePDFCategory = async (pdfId, categoryId) => {
+    const client = await pool.connect();
+    try {
+        await client.query(
+            'UPDATE pdf_files SET public_space_category_id = $1 WHERE id = $2',
+            [categoryId, pdfId]
+        );
+    } catch (error) {
+        console.error("❌ Lỗi khi cập nhật danh mục cho PDF:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
 exports.getPDFsBySubCategory = async (subCategory) => {
     const client = await pool.connect();
     try {
@@ -177,7 +209,8 @@ exports.getPDFsBySubCategory = async (subCategory) => {
                 LEFT(pf.full_text, 300) as excerpt,
                 u.fullname as author,
                 psc.name as category,
-                CEIL(LENGTH(pf.full_text) / 1000.0) as "readingTime"
+                CEIL(LENGTH(pf.full_text) / 1000.0) as "readingTime",
+                pf.file_type
             FROM pdf_files pf
             LEFT JOIN users u ON pf.uploaded_by = u.id
             LEFT JOIN public_space_categories psc ON pf.public_space_category_id = psc.id

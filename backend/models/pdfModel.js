@@ -1,26 +1,41 @@
 const pool = require("../config/db");
 
 // ✅ Lưu metadata file PDF vào bảng pdf_files
-exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId) => {
+exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId, subCategoryId = null) => {
     const client = await pool.connect();
     try {
-        console.log("📝 Bắt đầu lưu file");
-        
-        const checkQuery = `SELECT id FROM pdf_files WHERE pdf_name = $1 AND group_id = $2`;
-        const checkResult = await client.query(checkQuery, [fileName, groupId]);
+        await client.query('BEGIN');
+
+        // Kiểm tra file trùng với cả subCategoryId
+        const checkQuery = `
+            SELECT id FROM pdf_files 
+            WHERE pdf_name = $1 
+            AND group_id = $2 
+            AND ($3::integer IS NULL OR public_space_category_id = $3)
+        `;
+        const checkResult = await client.query(checkQuery, [
+            fileName, 
+            groupId,
+            subCategoryId
+        ]);
 
         if (checkResult.rows.length > 0) {
-            console.log(`⚠️ File ${fileName} đã tồn tại trong nhóm ${groupId}`);
-            return checkResult.rows[0].id;
+            throw new Error(`File ${fileName} đã tồn tại trong danh mục này`);
         }
 
+        // Lưu file mới với public_space_category_id
         const insertQuery = `
             INSERT INTO pdf_files (
-                pdf_name, uploaded_at, full_text, 
-                uploaded_by, group_id, file_type,
-                original_file
+                pdf_name, 
+                uploaded_at, 
+                full_text, 
+                uploaded_by, 
+                group_id, 
+                file_type,
+                original_file,
+                public_space_category_id
             )
-            VALUES ($1, NOW(), $2, $3, $4, $5, $6)
+            VALUES ($1, NOW(), $2, $3, $4, $5, $6, $7)
             RETURNING id;
         `;
         
@@ -30,12 +45,14 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId) => {
             uploadedBy,
             groupId,
             fileData.fileType,
-            fileData.originalFile
+            fileData.originalFile,
+            subCategoryId // Đảm bảo lưu subCategoryId
         ]);
 
-        console.log("✅ Đã lưu file thành công với ID:", result.rows[0].id);
+        await client.query('COMMIT');
         return result.rows[0].id;
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error("❌ Lỗi chi tiết khi lưu file:", error);
         throw error;
     } finally {

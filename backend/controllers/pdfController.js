@@ -19,6 +19,44 @@ const cleanupTempFile = async (filePath) => {
     }
 };
 
+// Thêm các hàm helper để tái sử dụng
+exports.processFile = async (buffer, fileType) => {
+    let fullText = '';
+    let chunks = [];
+
+    if (fileType === 'csv') {
+        const csvString = buffer.toString('utf-8');
+        const rows = parseCSV(csvString);
+        fullText = createASCIITable(rows);
+        chunks = createCSVChunks(rows);
+    } else {
+        const data = await pdfParse(buffer);
+        fullText = data.text
+            .replace(/\r\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n');
+        chunks = await splitTextIntoChunks(fullText);
+    }
+
+    return { fullText, chunks };
+};
+
+exports.generateEmbeddings = async (chunks) => {
+    const batchSize = 5;
+    const embeddings = [];
+    
+    for (let i = 0; i < chunks.length; i += batchSize) {
+        const batch = chunks.slice(i, i + batchSize);
+        const batchEmbeddings = await Promise.all(
+            batch.map(chunk => openaiService.generateEmbedding(chunk))
+        );
+        embeddings.push(...batchEmbeddings);
+        console.log(`✅ Đã xử lý ${i + batch.length}/${chunks.length} chunks`);
+    }
+    
+    return embeddings;
+};
+
+// Sửa lại hàm uploadFile để thêm public_space_category_id
 exports.uploadFile = async (req, res) => {
     try {
         if (!req.file) {
@@ -28,124 +66,14 @@ exports.uploadFile = async (req, res) => {
         const fileName = req.body.originalFileName || decodeURIComponent(req.file.originalname);
         const buffer = req.file.buffer;
         const fileType = fileName.toLowerCase().endsWith('.pdf') ? 'pdf' : 'csv';
-        
-        let fullText = '';
-        let chunks = [];
-
-        if (fileType === 'csv') {
-            const csvString = buffer.toString('utf-8');
-            
-            // Parse CSV với xử lý đặc biệt cho multiline cells
-            const parseCSV = (text) => {
-                const rows = [];
-                let currentRow = [];
-                let currentCell = '';
-                let insideQuotes = false;
-                
-                for (let i = 0; i < text.length; i++) {
-                    const char = text[i];
-                    const nextChar = text[i + 1];
-                    
-                    if (char === '"') {
-                        if (insideQuotes && nextChar === '"') {
-                            currentCell += '"';
-                            i++;
-                        } else {
-                            insideQuotes = !insideQuotes;
-                        }
-                    } else if (char === ',' && !insideQuotes) {
-                        currentRow.push(currentCell.trim());
-                        currentCell = '';
-                    } else if (char === '\n' && !insideQuotes) {
-                        currentRow.push(currentCell.trim());
-                        rows.push(currentRow);
-                        currentRow = [];
-                        currentCell = '';
-                    } else {
-                        currentCell += char;
-                    }
-                }
-                
-                if (currentCell) {
-                    currentRow.push(currentCell.trim());
-                }
-                if (currentRow.length) {
-                    rows.push(currentRow);
-                }
-                
-                return rows;
-            };
-
-            const rows = parseCSV(csvString);
-            
-            // Tạo ASCII table để hiển thị
-            const columnWidths = [];
-            rows.forEach(row => {
-                row.forEach((cell, i) => {
-                    const cellLines = cell.split('\n');
-                    const cellWidth = Math.max(...cellLines.map(line => line.length));
-                    columnWidths[i] = Math.max(columnWidths[i] || 0, cellWidth);
-                });
-            });
-
-            const createBorder = () => 
-                '+' + columnWidths.map(w => '-'.repeat(w + 2)).join('+') + '+\n';
-
-            const formatRow = (row) => {
-                const lines = row.map(cell => cell.split('\n'));
-                const maxLines = Math.max(...lines.map(cell => cell.length));
-                
-                let result = '';
-                for (let i = 0; i < maxLines; i++) {
-                    result += '|';
-                    for (let j = 0; j < row.length; j++) {
-                        const content = (lines[j][i] || '').padEnd(columnWidths[j]);
-                        result += ` ${content} |`;
-                    }
-                    result += '\n';
-                }
-                return result;
-            };
-
-            // Tạo ASCII table
-            let table = '';
-            table += createBorder();
-            table += formatRow(rows[0]);
-            table += createBorder();
-            
-            for (let i = 1; i < rows.length; i++) {
-                table += formatRow(rows[i]);
-                table += createBorder();
-            }
-
-            fullText = table;
-
-            // Chia chunks theo nhóm 3 dòng cho CSV
-            for (let i = 0; i < rows.length; i += 3) {
-                const chunkRows = rows.slice(i, Math.min(i + 3, rows.length));
-                const chunk = chunkRows.map(row => row.join(' | ')).join('\n');
-                chunks.push(chunk);
-            }
-        } else {
-            const data = await pdfParse(buffer);
-            fullText = data.text
-                .replace(/\r\n/g, '\n')
-                .replace(/\n{3,}/g, '\n\n');
-
-            // Chia chunks cho PDF
-            const splitter = new RecursiveCharacterTextSplitter({
-                chunkSize: 1000,
-                chunkOverlap: 200,
-            });
-            
-            const docs = await splitter.createDocuments([fullText]);
-            chunks = docs.map(doc => doc.pageContent);
-        }
-
-        // Lưu vào database
         const userId = req.user.id;
         const groupId = req.body.groupId;
+        const subCategoryId = req.body.subCategoryId; // Thêm subCategoryId từ request
+        
+        // Sử dụng hàm processFile
+        const { fullText, chunks } = await exports.processFile(buffer, fileType);
 
+        // Lưu metadata với subCategoryId
         const fileId = await pdfModel.savePDFMetadata(
             fileName,
             {
@@ -154,24 +82,15 @@ exports.uploadFile = async (req, res) => {
                 originalFile: buffer
             },
             userId,
-            groupId
+            groupId,
+            subCategoryId // Thêm subCategoryId vào đây
         );
 
-        // Tạo embeddings cho chunks
-        const batchSize = 5;
-        const embeddings = [];
+        // Sử dụng hàm generateEmbeddings
+        const embeddings = await exports.generateEmbeddings(chunks);
         
-        for (let i = 0; i < chunks.length; i += batchSize) {
-            const batch = chunks.slice(i, i + batchSize);
-            const batchEmbeddings = await Promise.all(
-                batch.map(chunk => openaiService.generateEmbedding(chunk))
-            );
-            embeddings.push(...batchEmbeddings);
-            console.log(`✅ Đã xử lý ${i + batch.length}/${chunks.length} chunks`);
-        }
-        
+        // Lưu chunks và embeddings
         await pdfModel.savePDFChunks(fileId, chunks, embeddings);
-        console.log(`✅ Hoàn tất xử lý file ${fileName}`);
 
         res.json({
             message: "Upload thành công",
@@ -489,14 +408,17 @@ exports.getPDFDetails = async (req, res) => {
         const query = `
             SELECT 
                 pf.id,
-                pf.pdf_name,
-                pf.uploaded_at,
+                pf.pdf_name as title,
+                pf.uploaded_at as "uploadedAt",
                 pf.full_text as content,
-                pf.group_id,
-                u.fullname as uploaded_by_name,
-                r.name as category_name
+                pf.file_type,
+                u.fullname as author,
+                psc.name as category,
+                r.name as group_name,
+                CEIL(LENGTH(pf.full_text) / 1000.0) as "readingTime"
             FROM pdf_files pf
             LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN public_space_categories psc ON pf.public_space_category_id = psc.id
             LEFT JOIN roles r ON pf.group_id = r.id
             WHERE pf.id = $1
         `;
@@ -509,18 +431,17 @@ exports.getPDFDetails = async (req, res) => {
 
         const pdf = result.rows[0];
 
-        const response = {
+        res.json({
             id: pdf.id,
-            title: pdf.pdf_name,
-            uploadedAt: pdf.uploaded_at,
+            title: pdf.title,
+            uploadedAt: pdf.uploadedAt,
             content: pdf.content,
-            groupId: pdf.group_id,
-            author: pdf.uploaded_by_name,
-            category: pdf.category_name,
-            readingTime: Math.ceil(pdf.content.split(' ').length / 200) // Ước tính thời gian đọc
-        };
-
-        res.json(response);
+            author: pdf.author,
+            category: pdf.category,
+            groupName: pdf.group_name,
+            fileType: pdf.file_type || 'pdf',
+            readingTime: pdf.readingTime
+        });
 
     } catch (error) {
         console.error("❌ Lỗi khi lấy chi tiết PDF:", error);
@@ -580,4 +501,119 @@ exports.getPDFsByCategory = async (req, res) => {
     } finally {
         client.release();
     }
+};
+
+// Hàm parse CSV
+const parseCSV = (text) => {
+    const rows = [];
+    let currentRow = [];
+    let currentCell = '';
+    let insideQuotes = false;
+    
+    for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+        
+        if (char === '"') {
+            if (insideQuotes && nextChar === '"') {
+                currentCell += '"';
+                i++;
+            } else {
+                insideQuotes = !insideQuotes;
+            }
+        } else if (char === ',' && !insideQuotes) {
+            currentRow.push(currentCell.trim());
+            currentCell = '';
+        } else if (char === '\n' && !insideQuotes) {
+            currentRow.push(currentCell.trim());
+            rows.push(currentRow);
+            currentRow = [];
+            currentCell = '';
+        } else {
+            currentCell += char;
+        }
+    }
+    
+    if (currentCell) {
+        currentRow.push(currentCell.trim());
+    }
+    if (currentRow.length) {
+        rows.push(currentRow);
+    }
+    
+    return rows;
+};
+
+// Hàm tính toán độ rộng cột
+const calculateColumnWidths = (rows) => {
+    const columnWidths = [];
+    rows.forEach(row => {
+        row.forEach((cell, i) => {
+            const cellLines = cell.split('\n');
+            const cellWidth = Math.max(...cellLines.map(line => line.length));
+            columnWidths[i] = Math.max(columnWidths[i] || 0, cellWidth);
+        });
+    });
+    return columnWidths;
+};
+
+// Hàm tạo border
+const createBorder = (columnWidths) => {
+    return '+' + columnWidths.map(w => '-'.repeat(w + 2)).join('+') + '+\n';
+};
+
+// Hàm format row
+const formatRow = (row, columnWidths) => {
+    const lines = row.map(cell => cell.split('\n'));
+    const maxLines = Math.max(...lines.map(cell => cell.length));
+    
+    let result = '';
+    for (let i = 0; i < maxLines; i++) {
+        result += '|';
+        for (let j = 0; j < row.length; j++) {
+            const content = (lines[j][i] || '').padEnd(columnWidths[j]);
+            result += ` ${content} |`;
+        }
+        result += '\n';
+    }
+    return result;
+};
+
+// Hàm tạo ASCII table
+const createASCIITable = (rows) => {
+    const columnWidths = calculateColumnWidths(rows);
+    let table = '';
+    
+    table += createBorder(columnWidths);
+    table += formatRow(rows[0], columnWidths);
+    table += createBorder(columnWidths);
+    
+    for (let i = 1; i < rows.length; i++) {
+        table += formatRow(rows[i], columnWidths);
+        table += createBorder(columnWidths);
+    }
+    
+    return table;
+};
+
+// Hàm tạo chunks cho CSV
+const createCSVChunks = (rows) => {
+    const chunks = [];
+    for (let i = 0; i < rows.length; i += 3) {
+        const chunkRows = rows.slice(i, Math.min(i + 3, rows.length));
+        const chunk = chunkRows.map(row => row.join(' | ')).join('\n');
+        chunks.push(chunk);
+    }
+    return chunks;
+};
+
+// Hàm split text thành chunks
+const splitTextIntoChunks = async (text) => {
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 1000,
+        chunkOverlap: 200,
+    });
+    
+    const docs = await splitter.createDocuments([text]);
+    return docs.map(doc => doc.pageContent);
 };

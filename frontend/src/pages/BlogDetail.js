@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import moment from 'moment';
 import 'moment/locale/vi';
+import '../css/blog.css';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -35,6 +36,8 @@ const BlogDetail = () => {
         const fetchPost = async () => {
             try {
                 const token = localStorage.getItem('token');
+                console.log("🔍 Fetching PDF details for ID:", id);
+                
                 const response = await axios.get(
                     `${API_BASE_URL}/pdf/details/${id}`,
                     { 
@@ -44,6 +47,8 @@ const BlogDetail = () => {
                         } 
                     }
                 );
+                
+                console.log("✅ PDF details:", response.data);
                 setPost(response.data);
             } catch (error) {
                 console.error('❌ Lỗi khi lấy chi tiết tài liệu:', error);
@@ -53,7 +58,9 @@ const BlogDetail = () => {
             }
         };
 
-        fetchPost();
+        if (id) {
+            fetchPost();
+        }
     }, [id]);
 
     const formatContent = (content) => {
@@ -98,6 +105,43 @@ const BlogDetail = () => {
         }
     };
 
+    const renderContent = () => {
+        if (!post || !post.content) {
+            return <Text>Không có nội dung</Text>;
+        }
+
+        // Nếu là file CSV thì hiển thị dạng ASCII table
+        if (post.fileType === 'csv') {
+            return (
+                <div className="file-content ascii-table">
+                    <pre>{post.content}</pre>
+                </div>
+            );
+        }
+
+        // Nếu là PDF thì hiển thị theo sections như cũ
+        const sections = formatContent(post.content);
+        return (
+            <div className="blog-content">
+                {sections.map((section, index) => (
+                    <div key={index} id={`section-${index}`} className="content-section">
+                        {section.title && (
+                            <Title level={3}>{section.title}</Title>
+                        )}
+                        <Paragraph>
+                            {section.content.split('\n').map((line, i) => (
+                                <React.Fragment key={i}>
+                                    {line}
+                                    <br />
+                                </React.Fragment>
+                            ))}
+                        </Paragraph>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="blog-detail-container">
@@ -120,8 +164,6 @@ const BlogDetail = () => {
             </div>
         );
     }
-
-    const sections = formatContent(post.content);
 
     return (
         <div className="blog-detail-container">
@@ -150,6 +192,12 @@ const BlogDetail = () => {
                         <ClockCircleOutlined />
                         <Text>{post.readingTime} phút đọc</Text>
                     </Space>
+                    {post.fileType && (
+                        <Space>
+                            <FileTextOutlined />
+                            <Text>{post.fileType.toUpperCase()}</Text>
+                        </Space>
+                    )}
                 </Space>
 
                 {post.keywords?.length > 0 && (
@@ -164,14 +212,15 @@ const BlogDetail = () => {
 
                 <Divider />
 
-                {sections.length > 1 && (
+                {/* Chỉ hiển thị mục lục nếu là file PDF và có nhiều section */}
+                {post.fileType !== 'csv' && formatContent(post.content).length > 1 && (
                     <>
                         <Card size="small" className="table-of-contents">
                             <Title level={4}>
                                 <FileTextOutlined /> Mục lục
                             </Title>
                             <ul className="toc-list">
-                                {sections.map((section, index) => (
+                                {formatContent(post.content).map((section, index) => (
                                     <li key={index}>
                                         <a href={`#section-${index}`}>
                                             {section.title || `Phần ${index + 1}`}
@@ -184,23 +233,7 @@ const BlogDetail = () => {
                     </>
                 )}
 
-                <div className="blog-content">
-                    {sections.map((section, index) => (
-                        <div key={index} id={`section-${index}`} className="content-section">
-                            {section.title && (
-                                <Title level={3}>{section.title}</Title>
-                            )}
-                            <Paragraph>
-                                {section.content.split('\n').map((line, i) => (
-                                    <React.Fragment key={i}>
-                                        {line}
-                                        <br />
-                                    </React.Fragment>
-                                ))}
-                            </Paragraph>
-                        </div>
-                    ))}
-                </div>
+                {renderContent()}
             </Card>
         </div>
     );

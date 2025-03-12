@@ -1,4 +1,6 @@
 const categoryModel = require("../models/categoryModel");
+const pdfModel = require("../models/pdfModel");
+const pdfController = require("../controllers/pdfController");
 
 exports.getAllCategories = async (req, res) => {
     try {
@@ -68,7 +70,7 @@ exports.deleteCategory = async (req, res) => {
 
 exports.getSubCategories = async (req, res) => {
     try {
-        const subCategories = await categoryModel.getSubCategories();
+        const subCategories = await categoryModel.getAllPublicSpaceCategories();
         res.json(subCategories);
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách danh mục con:", error);
@@ -94,58 +96,60 @@ exports.getPDFsByCategory = async (req, res) => {
 
 exports.uploadPDFToCategory = async (req, res) => {
     try {
-        console.log("📝 Request body:", req.body);
-        console.log("📎 File info:", req.file);
-
         if (!req.file) {
-            return res.status(400).json({ error: "Không tìm thấy file PDF!" });
+            return res.status(400).json({ error: "Không tìm thấy file!" });
         }
 
         const { originalFileName, subCategory } = req.body;
+        const userId = req.user.id;
         
         if (!subCategory) {
             return res.status(400).json({ error: "Thiếu thông tin danh mục!" });
         }
 
-        const userId = req.user.id;
-
-        // Backend tự lấy ID của "Không gian chung"
+        // Lấy ID của "Không gian chung"
         const publicSpaceRole = await categoryModel.getPublicSpaceRole();
-        console.log("🏢 Public Space Role:", publicSpaceRole);
-
         if (!publicSpaceRole) {
             return res.status(404).json({ error: "Không tìm thấy không gian chung!" });
         }
 
         // Lấy thông tin danh mục con
         const subCategoryInfo = await categoryModel.getSubCategoryByName(subCategory);
-        console.log("📂 Sub Category Info:", subCategoryInfo);
-
         if (!subCategoryInfo) {
             return res.status(404).json({ error: "Không tìm thấy danh mục!" });
         }
 
-        // Xử lý file PDF và lưu vào database
-        const pdfData = {
-            fileName: originalFileName || req.file.originalname,
-            content: req.file.buffer,
-            userId: userId,
-            groupId: publicSpaceRole.id,
-            subCategoryId: subCategoryInfo.id
-        };
+        // Chuẩn bị dữ liệu file
+        const fileName = originalFileName || decodeURIComponent(req.file.originalname);
+        const buffer = req.file.buffer;
+        const fileType = fileName.toLowerCase().endsWith('.pdf') ? 'pdf' : 'csv';
 
-        console.log("📤 Saving PDF with data:", {
-            fileName: pdfData.fileName,
-            userId: pdfData.userId,
-            groupId: pdfData.groupId,
-            subCategoryId: pdfData.subCategoryId
-        });
+        // Gọi hàm xử lý file từ pdfController
+        const { fullText, chunks } = await pdfController.processFile(buffer, fileType);
 
-        const result = await categoryModel.savePDFWithCategory(pdfData);
+        // Lưu metadata file
+        const fileId = await pdfModel.savePDFMetadata(
+            fileName,
+            {
+                text: fullText,
+                fileType: fileType,
+                originalFile: buffer
+            },
+            userId,
+            publicSpaceRole.id,
+            subCategoryInfo.id
+        );
+
+        // Tạo embeddings cho chunks
+        const embeddings = await pdfController.generateEmbeddings(chunks);
+        
+        // Lưu chunks và embeddings
+        await pdfModel.savePDFChunks(fileId, chunks, embeddings);
 
         res.status(201).json({
             message: "Upload file thành công!",
-            data: result
+            fileId,
+            fileName
         });
 
     } catch (error) {

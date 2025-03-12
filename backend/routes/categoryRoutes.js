@@ -31,14 +31,16 @@ router.put("/:id", categoryController.updateCategory);
 // Xóa danh mục
 router.delete("/:id", categoryController.deleteCategory);
 
-// Thêm routes mới cho danh mục con
+// Lấy danh sách danh mục con của Không gian chung
 router.get('/khong-gian-chung/sub', categoryController.getSubCategories);
+
+// Lấy danh sách PDF theo danh mục con
 router.get('/khong-gian-chung/sub/:subCategory', categoryController.getPDFsByCategory);
 
-// Route upload file vào danh mục
+// Upload file vào danh mục con
 router.post(
     '/khong-gian-chung/upload',
-    upload.single('pdf'),
+    upload.single('file'),
     categoryController.uploadPDFToCategory
 );
 

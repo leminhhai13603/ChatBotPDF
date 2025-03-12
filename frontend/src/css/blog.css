@@ -13,7 +13,6 @@ body {
 }
 
 .blog-list-content {
-    max-width: 1140px;
     margin: 0 auto;
     padding: 0;
 }
@@ -112,10 +111,11 @@ body {
 /* Blog Detail styles - Enhanced */
 .blog-detail-container {
     padding: 40px 24px;
-    max-width: 1000px;
     margin: 0 auto;
     min-height: calc(100vh - 64px);
     background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+    max-width: 1200px;
+    width: 100%;
 }
 
 .blog-detail-container .ant-card {
@@ -123,6 +123,7 @@ body {
     box-shadow: 0 8px 30px rgba(0,0,0,0.08);
     border: none;
     overflow: hidden;
+    width: 100%;
 }
 
 /* Header Section */
@@ -146,9 +147,9 @@ body {
 
 /* Title and Meta Info */
 .blog-detail-container .ant-card-body > h1.ant-typography {
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: #1a202c;
+    font-size: 2rem;
+    max-width: 100%;
+    word-break: break-word;
     margin-bottom: 24px;
     line-height: 1.3;
     background: linear-gradient(120deg, #2c5282, #1890ff);
@@ -194,12 +195,9 @@ body {
 
 /* Table of Contents */
 .table-of-contents {
-    background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
-    border-radius: 12px;
-    margin: 32px 0;
-    padding: 24px !important;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    max-width: 100%;
+    margin: 24px 0;
+    padding: 16px !important;
 }
 
 .table-of-contents h4 {
@@ -259,6 +257,8 @@ body {
     font-size: 17px;
     line-height: 1.8;
     color: #4a5568;
+    width: 100%;
+    overflow-x: hidden;
 }
 
 .content-section {
@@ -307,11 +307,11 @@ body {
 /* Responsive Design */
 @media (max-width: 768px) {
     .blog-detail-container {
-        padding: 20px 16px;
+        padding: 16px;
     }
 
     .blog-detail-container .ant-card-body > h1.ant-typography {
-        font-size: 2rem;
+        font-size: 1.5rem;
     }
 
     .content-section h3 {
@@ -587,5 +587,73 @@ body {
     
     .main-title h1::after {
         right: -50px;
+    }
+}
+
+/* Cập nhật lại styles cho ASCII table */
+.blog-detail-container .ascii-table {
+    font-family: 'Courier New', Courier, monospace;
+    white-space: pre;
+    overflow-x: auto;
+    max-width: 100%;
+    max-height: 500px;
+    overflow-y: auto;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    margin: 16px 0;
+    font-size: 12px;
+}
+
+.blog-detail-container .ascii-table pre {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.3;
+    color: #2d3748;
+    min-width: max-content;
+}
+
+/* Custom scrollbar cho cả scroll ngang và dọc */
+.blog-detail-container .ascii-table::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background-color: #f8fafc;
+}
+
+.blog-detail-container .ascii-table::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+
+.blog-detail-container .ascii-table::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+}
+
+/* Góc giao nhau của scrollbar */
+.blog-detail-container .ascii-table::-webkit-scrollbar-corner {
+    background: #f8fafc;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .blog-detail-container .ascii-table {
+        max-height: 400px;
+        padding: 8px;
+        font-size: 11px;
+    }
+    
+    .blog-detail-container .ascii-table pre {
+        font-size: 11px;
+        line-height: 1.2;
+    }
+}
+
+/* Thêm media query cho màn hình lớn */
+@media (min-width: 1400px) {
+    .blog-detail-container {
+        max-width: 1400px;
     }
 } 
