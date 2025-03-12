@@ -128,7 +128,15 @@ const SheetDashboard = () => {
 
     const handleDelete = async (id) => {
         try {
-            console.log('Deleting task with ID:', id);
+            // Nếu là id tạm thời (temp_), chỉ cần xóa khỏi state
+            if (id.toString().startsWith('temp_')) {
+                setData(prevData => prevData.filter(item => item.id !== id));
+                message.success('Đã xóa dòng tạm thời');
+                return;
+            }
+
+            // Nếu là id thật, thực hiện xóa trên server
+            console.log('Đang xóa task với ID:', id);
             const token = localStorage.getItem("token");
             
             const response = await axios.delete(
@@ -143,6 +151,7 @@ const SheetDashboard = () => {
 
             if (response.status === 200) {
                 setData(prevData => prevData.filter(item => item.id !== id));
+                message.success('Đã xóa thành công');
                 
                 if (timelineRef.current) {
                     try {
@@ -153,13 +162,12 @@ const SheetDashboard = () => {
                         console.error('Lỗi khi cập nhật timeline:', e);
                     }
                 }
-
-                await fetchTasks();
                 
                 console.log('Xóa task thành công:', response.data);
             }
         } catch (error) {
             console.error('Lỗi chi tiết khi xóa:', error.response?.data || error);
+            message.error('Lỗi khi xóa: ' + (error.response?.data?.details || error.message));
         }
     };
 
