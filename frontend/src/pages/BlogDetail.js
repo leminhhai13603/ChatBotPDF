@@ -73,7 +73,8 @@ const BlogDetail = () => {
         content.split('\n').forEach(line => {
             // Kiểm tra xem dòng có phải là tiêu đề không
             if (line.match(/^(#{1,6}|\d+\.|\d+\.\d+|[IVX]+\.)\s+/)) {
-                if (currentTitle) {
+                // Nếu có nội dung trước đó, lưu vào sections
+                if (currentTitle || currentSection) {
                     sections.push({
                         title: currentTitle,
                         content: currentSection.trim()
@@ -82,14 +83,24 @@ const BlogDetail = () => {
                 currentTitle = line;
                 currentSection = '';
             } else {
+                // Thêm dòng vào section hiện tại
                 currentSection += line + '\n';
             }
         });
 
+        // Thêm section cuối cùng
         if (currentTitle || currentSection) {
             sections.push({
                 title: currentTitle,
                 content: currentSection.trim()
+            });
+        }
+
+        // Nếu không có section nào (không có tiêu đề), tạo một section mặc định
+        if (sections.length === 0 && content) {
+            sections.push({
+                title: '',
+                content: content.trim()
             });
         }
 
@@ -119,7 +130,7 @@ const BlogDetail = () => {
             );
         }
 
-        // Nếu là PDF thì hiển thị theo sections như cũ
+        // Nếu là PDF thì hiển thị theo sections
         const sections = formatContent(post.content);
         return (
             <div className="blog-content">
