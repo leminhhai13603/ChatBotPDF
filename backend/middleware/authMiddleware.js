@@ -12,8 +12,7 @@ const authenticateToken = (req, res, next) => {
         if (err) {
             return res.status(403).json({ error: "Token không hợp lệ" });
         }
-        
-        // Đảm bảo user.roles luôn là một mảng
+    
         req.user = {
             ...user,
             roles: user.roles || []

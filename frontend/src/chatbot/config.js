@@ -44,10 +44,10 @@ const config = {
   ],
   customStyles: {
     botMessageBox: {
-      backgroundColor: "#376B7E",
+      backgroundColor: "#ffffff",
     },
     chatButton: {
-      backgroundColor: "#5ccc9d",
+      backgroundColor: "#3b82f6",
     },
   },
   widgets: [

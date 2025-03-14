@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import "../css/fileList.css"; 
 
@@ -15,6 +15,7 @@ const FileList = ({ refresh }) => {
   const [selectedRole, setSelectedRole] = useState("all");
   const filesPerPage = 5; 
   const [showDeleteModal, setShowDeleteModal] = useState(false); 
+  const previewRef = useRef(null);
 
   useEffect(() => {
     fetchRoles();
@@ -216,21 +217,79 @@ const FileList = ({ refresh }) => {
   };
 
   const FileContent = ({ content, fileType }) => {
+    const contentRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [startY, setStartY] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+    const [scrollTop, setScrollTop] = useState(0);
+    
+    const handleMouseDown = (e) => {
+        // Nếu đang chọn text thì không xử lý kéo
+        if (window.getSelection().toString()) {
+            return;
+        }
+
+        const content = contentRef.current;
+        if (!content) return;
+        
+        setIsDragging(true);
+        setStartX(e.pageX - content.offsetLeft);
+        setStartY(e.pageY - content.offsetTop);
+        setScrollLeft(content.scrollLeft);
+        setScrollTop(content.scrollTop);
+        content.style.cursor = 'grabbing';
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+
+        const content = contentRef.current;
+        const x = e.pageX - content.offsetLeft;
+        const y = e.pageY - content.offsetTop;
+        
+        // Tính khoảng cách di chuyển
+        const walkX = (x - startX) * 2;
+        const walkY = (y - startY) * 2;
+        
+        content.scrollLeft = scrollLeft - walkX;
+        content.scrollTop = scrollTop - walkY;
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        if (contentRef.current) {
+            contentRef.current.style.cursor = 'grab';
+        }
+    };
+
+    useEffect(() => {
+        const content = contentRef.current;
+        if (content) {
+            content.addEventListener('mousemove', handleMouseMove);
+            content.addEventListener('mouseup', handleMouseUp);
+            content.addEventListener('mouseleave', handleMouseUp);
+
+            return () => {
+                content.removeEventListener('mousemove', handleMouseMove);
+                content.removeEventListener('mouseup', handleMouseUp);
+                content.removeEventListener('mouseleave', handleMouseUp);
+            };
+        }
+    }, [isDragging, startX, startY, scrollLeft, scrollTop]);
+
     if (!content) {
         return <div className="file-content">Không có nội dung</div>;
     }
 
-    if (fileType === 'csv') {
-        return (
-            <div className="file-content ascii-table">
-                <pre>{content}</pre>
-            </div>
-        );
-    }
-
     return (
-        <div className="file-content">
-            <pre className="text-content">{content}</pre>
+        <div 
+            ref={contentRef}
+            className={`file-content ${fileType === 'csv' ? 'ascii-table' : ''}`}
+            onMouseDown={handleMouseDown}
+        >
+            <pre>{content}</pre>
         </div>
     );
   };
@@ -245,10 +304,69 @@ const FileList = ({ refresh }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, selectedRole, files]);
 
+  const renderPaginationButtons = () => {
+    const buttons = [];
+    const maxVisiblePages = 5; // Số trang hiển thị tối đa
+
+    // Luôn hiển thị trang đầu
+    buttons.push(
+      <button 
+        key={1} 
+        className={currentPage === 1 ? "active" : ""} 
+        onClick={() => paginate(1)}
+      >
+        1
+      </button>
+    );
+
+    // Thêm dấu ... bên trái
+    if (currentPage > maxVisiblePages - 2) {
+      buttons.push(<span key="left-dots">...</span>);
+    }
+
+    // Các trang ở giữa
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      if (i <= currentPage + 1 && i >= currentPage - 1) {
+        buttons.push(
+          <button
+            key={i}
+            className={currentPage === i ? "active" : ""}
+            onClick={() => paginate(i)}
+          >
+            {i}
+          </button>
+        );
+      }
+    }
+
+    // Thêm dấu ... bên phải
+    if (currentPage < totalPages - (maxVisiblePages - 3)) {
+      buttons.push(<span key="right-dots">...</span>);
+    }
+
+    // Luôn hiển thị trang cuối nếu có nhiều hơn 1 trang
+    if (totalPages > 1) {
+      buttons.push(
+        <button
+          key={totalPages}
+          className={currentPage === totalPages ? "active" : ""}
+          onClick={() => paginate(totalPages)}
+        >
+          {totalPages}
+        </button>
+      );
+    }
+
+    return buttons;
+  };
+
   return (
     <div className="file-list-page">
       <div className="file-layout">
-        <div className="file-preview">
+        <div 
+          ref={previewRef}
+          className="file-preview"
+        >
           {selectedFile && (
             <>
               <h3>{selectedFile.pdf_name}</h3>
@@ -347,15 +465,19 @@ const FileList = ({ refresh }) => {
 
           {totalPages > 1 && (
             <div className="pagination">
-              <button onClick={() => paginate(currentPage - 1)} disabled={currentPage === 1}>
+              <button 
+                className="pagination-arrow"
+                onClick={() => paginate(currentPage - 1)} 
+                disabled={currentPage === 1}
+              >
                 ⬅ Trước
               </button>
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button key={i + 1} className={currentPage === i + 1 ? "active" : ""} onClick={() => paginate(i + 1)}>
-                  {i + 1}
-                </button>
-              ))}
-              <button onClick={() => paginate(currentPage + 1)} disabled={currentPage === totalPages}>
+              {renderPaginationButtons()}
+              <button 
+                className="pagination-arrow"
+                onClick={() => paginate(currentPage + 1)} 
+                disabled={currentPage === totalPages}
+              >
                 Tiếp ➡
               </button>
             </div>
