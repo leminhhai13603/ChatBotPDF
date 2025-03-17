@@ -109,37 +109,57 @@ exports.uploadFile = async (req, res) => {
 
 exports.getAllPDFs = async (req, res) => {
     try {
-        const userId = req.user.id;
-        const userRoles = req.user.roles || [];
+        const { page = 1, limit = 10, search, category } = req.query;
+        const offset = (page - 1) * limit;
         
-        console.log("🔍 Đang lấy danh sách file cho user:", {
-            userId,
-            roles: userRoles
-        });
+        let query = `
+            SELECT 
+                pf.id, 
+                pf.pdf_name,
+                pf.file_type,
+                pf.uploaded_at,
+                pf.group_id,
+                u.username as uploader_name,
+                r.name as group_name,
+                COUNT(*) OVER() as total_count
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN roles r ON pf.group_id = r.id
+            WHERE 1=1
+        `;
         
-        const files = await pdfModel.getAllPDFs(userId, userRoles);
+        const params = [];
         
-        console.log(`✅ Đã tìm thấy ${files.length} file`);
+        if (search) {
+            query += ` AND (pf.pdf_name ILIKE $${params.length + 1})`;
+            params.push(`%${search}%`);
+        }
+        
+        if (category) {
+            query += ` AND pf.group_id = $${params.length + 1}`;
+            params.push(category);
+        }
+        
+        query += `
+            ORDER BY pf.uploaded_at DESC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
+        params.push(limit, offset);
+        
+        const result = await pool.query(query, params);
         
         res.json({
             success: true,
-            files: files.map(file => ({
-                id: file.id,
-                pdf_name: file.pdf_name,
-                uploaded_at: file.uploaded_at,
-                full_text: file.full_text,
-                group_id: file.group_id,
-                group_name: file.group_name,
-                file_type: file.file_type || 'pdf',
-                uploader_name: file.uploader_name
-            }))
+            files: result.rows,
+            total: result.rows[0]?.total_count || 0,
+            page: Number(page),
+            limit: Number(limit)
         });
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách file:", error);
         res.status(500).json({ 
-            success: false,
-            error: "Lỗi khi lấy danh sách file",
-            message: error.message 
+            success: false, 
+            error: "Lỗi khi lấy danh sách file" 
         });
     }
 };

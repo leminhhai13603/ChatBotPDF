@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, memo } from "react";
 import axios from "axios";
 import "../css/fileList.css"; 
+import { debounce } from "lodash";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
@@ -13,7 +14,9 @@ const FileList = ({ refresh }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState("all");
-  const filesPerPage = 5; 
+  const [loading, setLoading] = useState(true);
+  const [filesPerPage, setFilesPerPage] = useState(5);
+  const [totalCount, setTotalCount] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false); 
   const previewRef = useRef(null);
 
@@ -66,84 +69,81 @@ const FileList = ({ refresh }) => {
 
   const fetchFiles = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem("token");
+      
       const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
       if (response.data.success) {
-        console.log("📂 Files từ API:", response.data.files);
-        setFiles(response.data.files);
-        setFilteredFiles(response.data.files);
-      } else {
-        console.error("❌ Lỗi:", response.data.error);
+        const allFiles = response.data.files;
+        
+        let filteredResults = [...allFiles];
+        if (selectedRole !== "all") {
+          filteredResults = allFiles.filter(file => 
+            Number(file.group_id) === Number(selectedRole)
+          );
+        }
+        
+        setFiles(allFiles);
+        setFilteredFiles(filteredResults);
+        setTotalCount(response.data.total);
       }
     } catch (error) {
-      console.error("❌ Lỗi khi tải danh sách file:", error.response?.data || error.message);
+      console.error("❌ Lỗi khi tải danh sách file:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const filterFiles = () => {
+  const debouncedSearch = useCallback(
+    debounce((query) => {
+      setSearchQuery(query);
+      setCurrentPage(1);
+      fetchFiles();
+    }, 500),
+    []
+  );
+
+  const handleSearch = (e) => {
+    debouncedSearch(e.target.value);
+  };
+
+  const filterFiles = useCallback(() => {
+    if (files.length === 0) return;
+    
     let filtered = [...files];
     const userRole = localStorage.getItem("userRole");
     
-    console.log("🔍 Start filtering:", {
-      selectedRole,
-      userRole,
-      totalFiles: files.length,
-      fileDetails: files.map(f => ({
-        name: f.pdf_name,
-        group_id: f.group_id
-      }))
-    });
-
     if (userRole !== 'admin' && selectedRole !== "all") {
-      filtered = filtered.filter(file => {
-        const fileGroupId = Number(file.group_id || 0);
-        const selectedRoleId = Number(selectedRole);
-        
-        console.log(`📑 Comparing:`, {
-          fileName: file.pdf_name,
-          fileGroupId,
-          selectedRoleId,
-          isMatch: fileGroupId === selectedRoleId
-        });
-        
-        return fileGroupId === selectedRoleId;
-      });
-    }
-    
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        file =>
-          file.pdf_name.toLowerCase().includes(query) ||
-          (file.full_text && file.full_text.toLowerCase().includes(query))
+      filtered = filtered.filter(file => 
+        Number(file.group_id) === Number(selectedRole)
       );
     }
     
-    console.log("✅ Filtered results:", {
-      totalFiltered: filtered.length,
-      files: filtered.map(f => f.pdf_name)
-    });
-    
     setFilteredFiles(filtered);
-    setCurrentPage(1);
-  };
+  }, [files, selectedRole]);
 
   useEffect(() => {
-    filterFiles();
-  }, [selectedRole, searchQuery, files]); 
-
-  const handleSearch = (e) => {
-    setSearchQuery(e.target.value);
-    filterFiles();
-  };
+    fetchFiles();
+  }, [refresh]);
 
   const handleCategoryChange = (e) => {
     const newRole = e.target.value;
-    console.log("🔄 Selected role changed:", newRole); 
+    console.log("🔄 Selected role changed:", newRole);
     setSelectedRole(newRole);
+    
+    if (newRole === "all") {
+      setFilteredFiles(files);
+    } else {
+      const filtered = files.filter(file => 
+        Number(file.group_id) === Number(newRole)
+      );
+      setFilteredFiles(filtered);
+    }
+    
+    setCurrentPage(1);
   };
 
   const truncateFileName = (fileName, maxLength = 30) => {
@@ -290,16 +290,6 @@ const FileList = ({ refresh }) => {
     );
   };
 
-  useEffect(() => {
-    fetchFiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    filterFiles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, selectedRole, files]);
-
   const renderPaginationButtons = () => {
     const buttons = [];
     const maxVisiblePages = 5; // Số trang hiển thị tối đa
@@ -409,57 +399,65 @@ const FileList = ({ refresh }) => {
             />
           </div>
 
-          <table className="file-list-table">
-            <thead>
-              <tr>
-                <th>Tên file</th>
-                <th>Loại</th>
-                <th>Người upload</th>
-                <th>Ngày upload</th>
-                <th>Nhóm</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentFiles.length === 0 ? (
+          <div className="table-container">
+            <table className="file-list-table">
+              <thead>
                 <tr>
-                  <td colSpan="5" className="text-center">Không có file nào</td>
+                  <th>Tên file</th>
+                  <th>Loại</th>
+                  <th>Người upload</th>
+                  <th>Ngày upload</th>
+                  <th>Nhóm</th>
+                  <th></th>
                 </tr>
-              ) : (
-                currentFiles.map((file) => {
-                  const uploadDate = new Date(file.uploaded_at).toLocaleDateString('vi-VN');
-                  const fileType = file.file_type?.toUpperCase() || 'PDF';
-                  const isAnonymous = isAnonymousCategory(file.group_name);
-                  return (
-                    <tr key={file.id} className={selectedFile?.id === file.id ? "selected-row" : ""}>
-                      <td>
-                        <span
-                          className={`file-name clickable ${selectedFile?.id === file.id ? "selected" : ""}`}
-                          onClick={() => handleFileClick(file)}
-                          title={file.pdf_name}
-                        >
-                          {truncateFileName(file.pdf_name)}
-                        </span>
-                      </td>
-                      <td>{fileType}</td>
-                      <td>{isAnonymous ? 'Ẩn danh' : (file.uploader_name || 'Không xác định')}</td>
-                      <td>{uploadDate}</td>
-                      <td>{file.group_name}</td>
-                      <td className="action-column">
-                        <button 
-                          className="btn-delete" 
-                          onClick={() => confirmDelete(file)}
-                          title="Xóa file"
-                        >
-                          🗑️ Xoá
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="6" className="loading-cell">
+                      <div className="loading-spinner">Đang tải...</div>
+                    </td>
+                  </tr>
+                ) : currentFiles.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center">Không có file nào</td>
+                  </tr>
+                ) : (
+                  currentFiles.map((file) => {
+                    const uploadDate = new Date(file.uploaded_at).toLocaleDateString('vi-VN');
+                    const fileType = file.file_type?.toUpperCase() || 'PDF';
+                    const isAnonymous = isAnonymousCategory(file.group_name);
+                    return (
+                      <tr key={file.id} className={selectedFile?.id === file.id ? "selected-row" : ""}>
+                        <td>
+                          <span
+                            className={`file-name clickable ${selectedFile?.id === file.id ? "selected" : ""}`}
+                            onClick={() => handleFileClick(file)}
+                            title={file.pdf_name}
+                          >
+                            {truncateFileName(file.pdf_name)}
+                          </span>
+                        </td>
+                        <td>{fileType}</td>
+                        <td>{isAnonymous ? 'Ẩn danh' : (file.uploader_name || 'Không xác định')}</td>
+                        <td>{uploadDate}</td>
+                        <td>{file.group_name}</td>
+                        <td className="action-column">
+                          <button 
+                            className="btn-delete" 
+                            onClick={() => confirmDelete(file)}
+                            title="Xóa file"
+                          >
+                            🗑️ Xoá
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {totalPages > 1 && (
             <div className="pagination">
@@ -496,4 +494,4 @@ const FileList = ({ refresh }) => {
   );
 };
 
-export default FileList;
+export default memo(FileList);

@@ -418,3 +418,61 @@
 .file-content::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+.table-container {
+    width: 100%;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.file-list-table {
+    width: 100%;
+    margin-bottom: 0;
+    table-layout: fixed;
+}
+
+.file-list-table th,
+.file-list-table td {
+    padding: 12px;
+    vertical-align: middle;
+}
+
+/* Định nghĩa chiều rộng cố định cho các cột */
+.file-list-table th:nth-child(1) { width: 30%; }
+.file-list-table th:nth-child(2) { width: 10%; }
+.file-list-table th:nth-child(3) { width: 15%; }
+.file-list-table th:nth-child(4) { width: 15%; }
+.file-list-table th:nth-child(5) { width: 20%; }
+.file-list-table th:nth-child(6) { width: 10%; }
+
+.loading-cell {
+    height: 200px; 
+    text-align: center;
+    background: #fff;
+}
+
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: 1.1em;
+    color: #666;
+}
+
+/* Đảm bảo các hàng có chiều cao nhất định */
+.file-list-table tbody tr {
+    height: 40px; /* Hoặc chiều cao phù hợp */
+}
+
+.page-size-selector {
+    margin: 1rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.page-size-selector select {
+    padding: 0.25rem;
+    border-radius: 4px;
+}
