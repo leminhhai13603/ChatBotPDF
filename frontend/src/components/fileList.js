@@ -208,6 +208,10 @@ const FileList = ({ refresh }) => {
     }
   };
 
+  const isAnonymousCategory = (groupName) => {
+    return groupName?.toLowerCase().includes('hộp thư góp ý');
+  };
+
   const FileContent = ({ content, fileType }) => {
     const contentRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -254,9 +258,6 @@ const FileList = ({ refresh }) => {
         if (contentRef.current) {
             contentRef.current.style.cursor = 'grab';
         }
-    };
-    const isAnonymousCategory = (groupName) => {
-      return groupName?.toLowerCase().includes('hộp thư góp ý');
     };
 
     useEffect(() => {
@@ -366,9 +367,9 @@ const FileList = ({ refresh }) => {
             <>
               <h3>{selectedFile.pdf_name}</h3>
               <div className="file-info">
-              {!isAnonymousCategory(selectedFile.group_name) && (
-                <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
-              )}
+                {!isAnonymousCategory(selectedFile.group_name) && (
+                  <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
+                )}
                 <p><strong>Thời gian:</strong> {new Date(selectedFile.uploaded_at).toLocaleString('vi-VN')}</p>
                 <p><strong>Loại file:</strong> {selectedFile.file_type?.toUpperCase() || 'PDF'}</p>
               </div>

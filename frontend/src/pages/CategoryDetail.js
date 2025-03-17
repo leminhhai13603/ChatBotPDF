@@ -17,58 +17,6 @@ import 'moment/locale/vi';
 const { Title, Text, Paragraph } = Typography;
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-const styles = {
-  container: {
-    padding: '24px',
-    maxWidth: '1400px',
-    margin: '0 auto'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px'
-  },
-  title: {
-    margin: 0,
-    fontSize: '24px',
-    fontWeight: 'bold' 
-  },
-  card: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    transition: 'all 0.3s',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
-  cardContent: {
-    flex: 1,
-    padding: '24px'
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '16px'
-  },
-  cardMeta: {
-    marginTop: '16px'
-  },
-  uploadButton: {
-    height: '40px',
-    borderRadius: '6px',
-    fontWeight: 'bold'
-  },
-  feedbackForm: {
-    marginBottom: '24px',
-    padding: '20px',
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  }
-};
-
 const CategoryDetail = () => {
     const { category } = useParams();
     const navigate = useNavigate();
@@ -135,6 +83,10 @@ const CategoryDetail = () => {
             formData.append("file", file);
             formData.append("originalFileName", file.name);
             formData.append("subCategory", getCategoryWithAccents(category));
+            
+            if (category === 'hop-thu-gop-y') {
+                formData.append("isAnonymous", "true");
+            }
 
             const token = localStorage.getItem("token");
             const response = await axios.post(
@@ -186,6 +138,7 @@ const CategoryDetail = () => {
             const blob = new Blob([feedback], { type: 'text/plain' });
             formData.append('file', blob, `gop-y-${moment().format('YYYY-MM-DD-HH-mm')}.txt`);
             formData.append('subCategory', getCategoryWithAccents(category));
+            formData.append("isAnonymous", "true");
 
             await axios.post(
                 `${API_BASE_URL}/categories/khong-gian-chung/upload`,
@@ -210,17 +163,18 @@ const CategoryDetail = () => {
     const isAnonymous = category === 'hop-thu-gop-y';
 
     return (
-        <div style={styles.container}>
-            <div style={styles.header}>
+        <div className="category-detail-container">
+            <div className="category-detail-header">
                 <Space>
                     <Button 
                         type="link" 
                         icon={<ArrowLeftOutlined />}
                         onClick={() => navigate('/blog')}
+                        className="back-button"
                     >
                         Quay lại
                     </Button>
-                    <Title level={2} style={styles.title}>
+                    <Title level={2} className="category-title">
                         {getCategoryWithAccents(category)}
                     </Title>
                 </Space>
@@ -235,7 +189,7 @@ const CategoryDetail = () => {
                         type="primary"
                         icon={<UploadOutlined />}
                         loading={uploading}
-                        style={styles.uploadButton}
+                        className="upload-button"
                     >
                         {uploading ? 'Đang upload...' : 'Thêm tài liệu mới'}
                     </Button>
@@ -248,19 +202,19 @@ const CategoryDetail = () => {
                     description={error}
                     type="error"
                     showIcon
-                    style={{marginBottom: '24px'}}
+                    className="error-alert"
                 />
             )}
 
             {category === 'hop-thu-gop-y' && (
-                <div style={styles.feedbackForm}>
+                <div className="feedback-form">
                     <Title level={4}>Gửi góp ý của bạn</Title>
                     <Input.TextArea
                         rows={4}
                         value={feedback}
                         onChange={e => setFeedback(e.target.value)}
                         placeholder="Nhập nội dung góp ý..."
-                        style={{ marginBottom: '16px' }}
+                        className="feedback-input"
                     />
                     <Button 
                         type="primary"
@@ -286,43 +240,44 @@ const CategoryDetail = () => {
                         <Col xs={24} sm={12} lg={8} key={post.id}>
                             <Card 
                                 hoverable
-                                style={styles.card}
-                                bodyStyle={styles.cardContent}
+                                className="post-card"
                             >
-                                <Title level={4} style={styles.cardTitle}>
-                                    {post.title.replace(/\.(pdf|csv|txt)$/i, '')}
-                                </Title>
+                                <div className="post-card-content">
+                                    <Title level={4} className="post-title">
+                                        {post.title.replace(/\.(pdf|csv|txt)$/i, '')}
+                                    </Title>
 
-                                <Paragraph ellipsis={{ rows: 3 }}>
-                                    {post.excerpt}
-                                </Paragraph>
+                                    <Paragraph ellipsis={{ rows: 3 }} className="post-excerpt">
+                                        {post.excerpt}
+                                    </Paragraph>
 
-                                <Space direction="vertical" size={12} style={styles.cardMeta}>
-                                    {!isAnonymous && (
+                                    <Space direction="vertical" size={12} className="post-meta">
+                                        {!isAnonymous && (
+                                            <Space>
+                                                <UserOutlined />
+                                                <Text>{post.author || 'Không xác định'}</Text>
+                                            </Space>
+                                        )}
                                         <Space>
-                                            <UserOutlined />
-                                            <Text>{post.author || 'Không xác định'}</Text>
+                                            <ClockCircleOutlined />
+                                            <Text>{moment(post.uploadedAt).format('LL')}</Text>
                                         </Space>
-                                    )}
-                                    <Space>
-                                        <ClockCircleOutlined />
-                                        <Text>{moment(post.uploadedAt).format('LL')}</Text>
+                                        <Space>
+                                            <FileTextOutlined />
+                                            <Text>
+                                                {post.file_type?.toUpperCase() || 'TXT'} - {post.readingTime} phút đọc
+                                            </Text>
+                                        </Space>
                                     </Space>
-                                    <Space>
-                                        <FileTextOutlined />
-                                        <Text>
-                                            {post.file_type?.toUpperCase() || 'TXT'} - {post.readingTime} phút đọc
-                                        </Text>
-                                    </Space>
-                                </Space>
 
-                                <div style={{marginTop: 'auto', textAlign: 'right'}}>
-                                    <Button 
-                                        type="primary"
-                                        onClick={() => handleViewDetail(post.id)}
-                                    >
-                                        Xem chi tiết
-                                    </Button>
+                                    <div className="post-actions">
+                                        <Button 
+                                            type="primary"
+                                            onClick={() => handleViewDetail(post.id)}
+                                        >
+                                            Xem chi tiết
+                                        </Button>
+                                    </div>
                                 </div>
                             </Card>
                         </Col>

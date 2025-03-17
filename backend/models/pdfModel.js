@@ -23,7 +23,7 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId, subCat
             throw new Error(`File ${fileName} đã tồn tại trong danh mục này`);
         }
 
-        // Lưu file mới với public_space_category_id
+        // Lưu file mới với public_space_category_id và uploadedBy có thể là null
         const insertQuery = `
             INSERT INTO pdf_files (
                 pdf_name, 
@@ -42,11 +42,11 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId, subCat
         const result = await client.query(insertQuery, [
             fileName,
             fileData.text,
-            uploadedBy,
+            uploadedBy, // Có thể là null cho anonymous
             groupId,
             fileData.fileType,
             fileData.originalFile,
-            subCategoryId // Đảm bảo lưu subCategoryId
+            subCategoryId
         ]);
 
         await client.query('COMMIT');

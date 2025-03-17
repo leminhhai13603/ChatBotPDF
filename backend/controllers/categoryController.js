@@ -103,21 +103,14 @@ exports.uploadPDFToCategory = async (req, res) => {
         const { originalFileName, subCategory } = req.body;
         const userId = req.user.id;
         
-        if (!subCategory) {
-            return res.status(400).json({ error: "Thiếu thông tin danh mục!" });
-        }
-
-        // Lấy ID của "Không gian chung"
-        const publicSpaceRole = await categoryModel.getPublicSpaceRole();
-        if (!publicSpaceRole) {
-            return res.status(404).json({ error: "Không tìm thấy không gian chung!" });
-        }
-
         // Lấy thông tin danh mục con
         const subCategoryInfo = await categoryModel.getSubCategoryByName(subCategory);
         if (!subCategoryInfo) {
             return res.status(404).json({ error: "Không tìm thấy danh mục!" });
         }
+
+        // Kiểm tra nếu là hộp thư góp ý
+        const isAnonymous = subCategoryInfo.name === 'Hộp thư góp ý';
 
         // Chuẩn bị dữ liệu file
         const fileName = originalFileName || decodeURIComponent(req.file.originalname);
@@ -127,7 +120,13 @@ exports.uploadPDFToCategory = async (req, res) => {
         // Gọi hàm xử lý file từ pdfController
         const { fullText, chunks } = await pdfController.processFile(buffer, fileType);
 
-        // Lưu metadata file
+        // Lấy ID của "Không gian chung"
+        const publicSpaceRole = await categoryModel.getPublicSpaceRole();
+        if (!publicSpaceRole) {
+            return res.status(404).json({ error: "Không tìm thấy không gian chung!" });
+        }
+
+        // Lưu metadata file với userId là null nếu anonymous
         const fileId = await pdfModel.savePDFMetadata(
             fileName,
             {
@@ -135,7 +134,7 @@ exports.uploadPDFToCategory = async (req, res) => {
                 fileType: fileType,
                 originalFile: buffer
             },
-            userId,
+            isAnonymous ? null : userId,
             publicSpaceRole.id,
             subCategoryInfo.id
         );

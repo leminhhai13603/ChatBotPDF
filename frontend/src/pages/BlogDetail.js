@@ -153,6 +153,11 @@ const BlogDetail = () => {
         );
     };
 
+    // Thêm hàm kiểm tra anonymous category
+    const isAnonymousCategory = (category) => {
+        return category?.toLowerCase().includes('hộp thư góp ý');
+    };
+
     if (loading) {
         return (
             <div className="blog-detail-container">
@@ -191,10 +196,12 @@ const BlogDetail = () => {
                 <Title>{post.title}</Title>
                 
                 <Space split={<Divider type="vertical" />} style={{ marginBottom: 24 }}>
-                    <Space>
-                        <UserOutlined />
-                        <Text>{post.author || 'Không xác định'}</Text>
-                    </Space>
+                    {!isAnonymousCategory(location.state?.category) && (
+                        <Space>
+                            <UserOutlined />
+                            <Text>{post.author || 'Không xác định'}</Text>
+                        </Space>
+                    )}
                     <Space>
                         <CalendarOutlined />
                         <Text>{moment(post.uploadedAt).format('LL')}</Text>

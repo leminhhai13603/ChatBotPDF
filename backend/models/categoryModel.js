@@ -137,33 +137,21 @@ exports.savePDFWithCategory = async (pdfData) => {
     try {
         await client.query('BEGIN');
 
-        // Trích xuất text từ PDF bằng pdf-parse
-        let extractedText = '';
-        try {
-            const pdfResult = await pdfParse(pdfData.content);
-            extractedText = pdfResult.text
-                .replace(/\u0000/g, '') // Xóa null bytes
-                .replace(/\r\n/g, '\n') // Chuẩn hóa line endings
-                .trim();
-        } catch (error) {
-            console.error("⚠️ Lỗi khi trích xuất text từ PDF:", error);
-            extractedText = "Không thể trích xuất nội dung từ file PDF này.";
-        }
+        // Kiểm tra nếu là category góp ý thì không lưu thông tin người upload
+        const isAnonymous = pdfData.subCategoryId && 
+                           (await client.query(
+                               'SELECT name FROM public_space_categories WHERE id = $1',
+                               [pdfData.subCategoryId]
+                           )).rows[0]?.name === 'Hộp thư góp ý';
 
         // Sử dụng pdfModel để lưu file với text đã được xử lý
         const pdfId = await pdfModel.savePDFMetadata(
             pdfData.fileName,
-            extractedText,
-            pdfData.userId,
-            pdfData.groupId
+            pdfData.text,
+            isAnonymous ? null : pdfData.userId, // Set userId là null nếu anonymous
+            pdfData.groupId,
+            pdfData.subCategoryId
         );
-
-        // Cập nhật thông tin danh mục
-        await client.query(`
-            UPDATE pdf_files 
-            SET public_space_category_id = $1
-            WHERE id = $2
-        `, [pdfData.subCategoryId, pdfId]);
 
         await client.query('COMMIT');
         return { id: pdfId, pdf_name: pdfData.fileName };
