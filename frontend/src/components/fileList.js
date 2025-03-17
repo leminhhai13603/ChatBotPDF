@@ -62,6 +62,9 @@ const FileList = ({ refresh }) => {
       setLoading(true);
       const token = localStorage.getItem("token");
       
+      // Log để debug
+      console.log("Fetching page:", currentPage);
+      
       const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
         params: {
           page: currentPage,
@@ -70,14 +73,19 @@ const FileList = ({ refresh }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      // Log response để debug
+      console.log("API Response:", response.data);
+      
       if (response.data.success) {
         setFiles(response.data.files);
         setTotalPages(response.data.totalPages);
         
         // Log để debug
-        console.log("Total pages:", response.data.totalPages);
-        console.log("Current page:", response.data.currentPage);
-        console.log("Files count:", response.data.files.length);
+        console.log({
+          filesCount: response.data.files.length,
+          totalPages: response.data.totalPages,
+          currentPage: response.data.currentPage
+        });
       }
     } catch (error) {
       console.error("❌ Lỗi khi tải danh sách file:", error);
