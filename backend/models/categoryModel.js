@@ -194,20 +194,20 @@ exports.updatePDFCategory = async (pdfId, categoryId) => {
 exports.getPDFsBySubCategory = async (subCategory) => {
     const client = await pool.connect();
     try {
-        // Lấy thông tin danh mục con
         const subCategoryInfo = await exports.getSubCategoryByName(subCategory);
         if (!subCategoryInfo) {
             throw new Error("Không tìm thấy danh mục!");
         }
 
-        // Lấy danh sách PDF theo danh mục con
+        const isAnonymous = subCategoryInfo.name === 'Hộp thư góp ý';
+        
         const query = `
             SELECT 
                 pf.id,
                 pf.pdf_name as title,
                 pf.uploaded_at as "uploadedAt",
                 LEFT(pf.full_text, 300) as excerpt,
-                u.fullname as author,
+                ${isAnonymous ? 'NULL' : 'u.fullname'} as author,
                 psc.name as category,
                 CEIL(LENGTH(pf.full_text) / 1000.0) as "readingTime",
                 pf.file_type

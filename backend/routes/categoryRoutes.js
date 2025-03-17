@@ -12,9 +12,20 @@ const upload = multer({
         fileSize: 10 * 1024 * 1024 
     }
 });
-
 // Tất cả routes đều cần xác thực
 router.use(authMiddleware);
+// Lấy danh sách danh mục con của Không gian chung
+router.get('/khong-gian-chung/sub', categoryController.getSubCategories);
+
+// Lấy danh sách PDF theo danh mục con
+router.get('/khong-gian-chung/sub/:subCategory', categoryController.getPDFsByCategory);
+
+// Upload file vào danh mục con
+router.post(
+    '/khong-gian-chung/upload',
+    upload.single('file'),
+    categoryController.uploadPDFToCategory
+);
 
 // Routes cho admin
 router.use(authorizeAdmin);
@@ -30,18 +41,5 @@ router.put("/:id", categoryController.updateCategory);
 
 // Xóa danh mục
 router.delete("/:id", categoryController.deleteCategory);
-
-// Lấy danh sách danh mục con của Không gian chung
-router.get('/khong-gian-chung/sub', categoryController.getSubCategories);
-
-// Lấy danh sách PDF theo danh mục con
-router.get('/khong-gian-chung/sub/:subCategory', categoryController.getPDFsByCategory);
-
-// Upload file vào danh mục con
-router.post(
-    '/khong-gian-chung/upload',
-    upload.single('file'),
-    categoryController.uploadPDFToCategory
-);
 
 module.exports = router; 

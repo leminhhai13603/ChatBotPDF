@@ -208,14 +208,6 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  const formatText = (text) => {
-    if (!text) return '';
-    
-    return text
-      .replace(/\n\s*\n/g, '<br/><br/>') 
-      .replace(/\n/g, '<br/>'); 
-  };
-
   const FileContent = ({ content, fileType }) => {
     const contentRef = useRef(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -262,6 +254,9 @@ const FileList = ({ refresh }) => {
         if (contentRef.current) {
             contentRef.current.style.cursor = 'grab';
         }
+    };
+    const isAnonymousCategory = (groupName) => {
+      return groupName?.toLowerCase().includes('hộp thư góp ý');
     };
 
     useEffect(() => {
@@ -371,7 +366,9 @@ const FileList = ({ refresh }) => {
             <>
               <h3>{selectedFile.pdf_name}</h3>
               <div className="file-info">
+              {!isAnonymousCategory(selectedFile.group_name) && (
                 <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
+              )}
                 <p><strong>Thời gian:</strong> {new Date(selectedFile.uploaded_at).toLocaleString('vi-VN')}</p>
                 <p><strong>Loại file:</strong> {selectedFile.file_type?.toUpperCase() || 'PDF'}</p>
               </div>
@@ -431,7 +428,7 @@ const FileList = ({ refresh }) => {
                 currentFiles.map((file) => {
                   const uploadDate = new Date(file.uploaded_at).toLocaleDateString('vi-VN');
                   const fileType = file.file_type?.toUpperCase() || 'PDF';
-                  
+                  const isAnonymous = isAnonymousCategory(file.group_name);
                   return (
                     <tr key={file.id} className={selectedFile?.id === file.id ? "selected-row" : ""}>
                       <td>
@@ -444,7 +441,7 @@ const FileList = ({ refresh }) => {
                         </span>
                       </td>
                       <td>{fileType}</td>
-                      <td>{file.uploader_name}</td>
+                      <td>{isAnonymous ? 'Ẩn danh' : (file.uploader_name || 'Không xác định')}</td>
                       <td>{uploadDate}</td>
                       <td>{file.group_name}</td>
                       <td className="action-column">

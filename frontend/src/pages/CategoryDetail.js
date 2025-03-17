@@ -1,19 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Typography, Space, Button, Skeleton, Upload, message } from 'antd';
+import { Card, Row, Col, Typography, Space, Button, Skeleton, Upload, message, Alert, Empty, Input } from 'antd';
 import { 
     UserOutlined, 
     ClockCircleOutlined, 
     ArrowLeftOutlined,
     FileTextOutlined,
-    UploadOutlined 
+    UploadOutlined,
+    CalendarOutlined,
+    Divider
 } from '@ant-design/icons';
 import axios from 'axios';
 import moment from 'moment';
 import 'moment/locale/vi';
 
-const { Title, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+const styles = {
+  container: {
+    padding: '24px',
+    maxWidth: '1400px',
+    margin: '0 auto'
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '24px'
+  },
+  title: {
+    margin: 0,
+    fontSize: '24px',
+    fontWeight: 'bold' 
+  },
+  card: {
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'all 0.3s',
+    backgroundColor: '#fff',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  },
+  cardContent: {
+    flex: 1,
+    padding: '24px'
+  },
+  cardTitle: {
+    fontSize: '18px',
+    fontWeight: 'bold',
+    marginBottom: '16px'
+  },
+  cardMeta: {
+    marginTop: '16px'
+  },
+  uploadButton: {
+    height: '40px',
+    borderRadius: '6px',
+    fontWeight: 'bold'
+  },
+  feedbackForm: {
+    marginBottom: '24px',
+    padding: '20px',
+    backgroundColor: '#fff',
+    borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+  }
+};
 
 const CategoryDetail = () => {
     const { category } = useParams();
@@ -22,6 +76,7 @@ const CategoryDetail = () => {
     const [loading, setLoading] = useState(true);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState("");
+    const [feedback, setFeedback] = useState('');
 
     const getCategoryWithAccents = (categoryParam) => {
         const categoryMap = {
@@ -119,106 +174,168 @@ const CategoryDetail = () => {
         });
     };
 
+    const handleSubmitFeedback = async () => {
+        if (!feedback.trim()) {
+            message.error('Vui lòng nhập nội dung góp ý!');
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const formData = new FormData();
+            const blob = new Blob([feedback], { type: 'text/plain' });
+            formData.append('file', blob, `gop-y-${moment().format('YYYY-MM-DD-HH-mm')}.txt`);
+            formData.append('subCategory', getCategoryWithAccents(category));
+
+            await axios.post(
+                `${API_BASE_URL}/categories/khong-gian-chung/upload`,
+                formData,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
+
+            message.success('Gửi góp ý thành công!');
+            setFeedback('');
+            fetchPosts(getCategoryWithAccents(category));
+        } catch (error) {
+            console.error('❌ Lỗi khi gửi góp ý:', error);
+            message.error('Không thể gửi góp ý. Vui lòng thử lại sau!');
+        }
+    };
+
+    const isAnonymous = category === 'hop-thu-gop-y';
+
     return (
-        <div className="blog-list-container">
-            <div className="blog-list-content">
-                <Space className="category-header">
-                    <div className="left-section">
-                        <Button 
-                            type="link" 
-                            icon={<ArrowLeftOutlined />}
-                            onClick={() => navigate('/blog')}
-                        >
-                            Quay lại
-                        </Button>
-                        <Title level={2}>{getCategoryWithAccents(category)}</Title>
-                    </div>
-                    <Upload
-                        accept=".pdf,.csv"
-                        showUploadList={false}
-                        beforeUpload={handleUpload}
-                        disabled={uploading}
+        <div style={styles.container}>
+            <div style={styles.header}>
+                <Space>
+                    <Button 
+                        type="link" 
+                        icon={<ArrowLeftOutlined />}
+                        onClick={() => navigate('/blog')}
                     >
-                        <Button 
-                            type="primary" 
-                            icon={<UploadOutlined />}
-                            loading={uploading}
-                        >
-                            {uploading ? 'Đang upload...' : 'Thêm tài liệu mới'}
-                        </Button>
-                    </Upload>
+                        Quay lại
+                    </Button>
+                    <Title level={2} style={styles.title}>
+                        {getCategoryWithAccents(category)}
+                    </Title>
                 </Space>
 
-                {error && <div className="alert alert-danger">{error}</div>}
-
-                {loading ? (
-                    <Row gutter={[16, 16]}>
-                        {[1, 2, 3].map(i => (
-                            <Col xs={24} sm={12} lg={8} key={i}>
-                                <Card>
-                                    <Skeleton active />
-                                </Card>
-                            </Col>
-                        ))}
-                    </Row>
-                ) : (
-                    <>
-                        <Row gutter={[16, 16]}>
-                            {posts.map(post => (
-                                <Col xs={24} sm={12} lg={8} key={post.id}>
-                                    <Card 
-                                        hoverable 
-                                        className="blog-card"
-                                    >
-                                        <div className="blog-card-content">
-                                            <Title level={4} ellipsis={{ rows: 2 }}>
-                                                {post.title.replace(/\.(pdf|csv)$/i, '')}
-                                            </Title>
-                                            
-                                            <div className="blog-card-excerpt">
-                                                {post.excerpt}
-                                            </div>
-
-                                            <Space direction="vertical" size={12} className="blog-card-meta">
-                                                <Space>
-                                                    <UserOutlined />
-                                                    <Text>{post.author || 'Không xác định'}</Text>
-                                                </Space>
-                                                <Space>
-                                                    <ClockCircleOutlined />
-                                                    <Text>{moment(post.uploadedAt).fromNow()}</Text>
-                                                </Space>
-                                                <Space>
-                                                    <FileTextOutlined />
-                                                    <Text>
-                                                        {post.file_type?.toUpperCase() || 'PDF'} - {post.readingTime} phút đọc
-                                                    </Text>
-                                                </Space>
-                                            </Space>
-                                        </div>
-                                        <div className="blog-card-actions">
-                                            <Button 
-                                                type="link" 
-                                                onClick={() => handleViewDetail(post.id)}
-                                            >
-                                                Xem chi tiết
-                                            </Button>
-                                        </div>
-                                    </Card>
-                                </Col>
-                            ))}
-                        </Row>
-
-                        {posts.length === 0 && (
-                            <div className="empty-state">
-                                <Text type="secondary">
-                                    Chưa có tài liệu nào trong danh mục này
-                                </Text>
-                            </div>
-                        )}
-                    </>
-                )}
+                <Upload
+                    accept=".pdf,.csv"
+                    showUploadList={false}
+                    beforeUpload={handleUpload}
+                    disabled={uploading}
+                >
+                    <Button 
+                        type="primary"
+                        icon={<UploadOutlined />}
+                        loading={uploading}
+                        style={styles.uploadButton}
+                    >
+                        {uploading ? 'Đang upload...' : 'Thêm tài liệu mới'}
+                    </Button>
+                </Upload>
             </div>
+
+            {error && (
+                <Alert
+                    message="Lỗi"
+                    description={error}
+                    type="error"
+                    showIcon
+                    style={{marginBottom: '24px'}}
+                />
+            )}
+
+            {category === 'hop-thu-gop-y' && (
+                <div style={styles.feedbackForm}>
+                    <Title level={4}>Gửi góp ý của bạn</Title>
+                    <Input.TextArea
+                        rows={4}
+                        value={feedback}
+                        onChange={e => setFeedback(e.target.value)}
+                        placeholder="Nhập nội dung góp ý..."
+                        style={{ marginBottom: '16px' }}
+                    />
+                    <Button 
+                        type="primary"
+                        onClick={handleSubmitFeedback}
+                        loading={uploading}
+                    >
+                        Gửi góp ý
+                    </Button>
+                </div>
+            )}
+
+            <Row gutter={[24, 24]}>
+                {loading ? (
+                    [...Array(3)].map((_, i) => (
+                        <Col xs={24} sm={12} lg={8} key={i}>
+                            <Card>
+                                <Skeleton active />
+                            </Card>
+                        </Col>
+                    ))
+                ) : posts.length > 0 ? (
+                    posts.map(post => (
+                        <Col xs={24} sm={12} lg={8} key={post.id}>
+                            <Card 
+                                hoverable
+                                style={styles.card}
+                                bodyStyle={styles.cardContent}
+                            >
+                                <Title level={4} style={styles.cardTitle}>
+                                    {post.title.replace(/\.(pdf|csv|txt)$/i, '')}
+                                </Title>
+
+                                <Paragraph ellipsis={{ rows: 3 }}>
+                                    {post.excerpt}
+                                </Paragraph>
+
+                                <Space direction="vertical" size={12} style={styles.cardMeta}>
+                                    {!isAnonymous && (
+                                        <Space>
+                                            <UserOutlined />
+                                            <Text>{post.author || 'Không xác định'}</Text>
+                                        </Space>
+                                    )}
+                                    <Space>
+                                        <ClockCircleOutlined />
+                                        <Text>{moment(post.uploadedAt).format('LL')}</Text>
+                                    </Space>
+                                    <Space>
+                                        <FileTextOutlined />
+                                        <Text>
+                                            {post.file_type?.toUpperCase() || 'TXT'} - {post.readingTime} phút đọc
+                                        </Text>
+                                    </Space>
+                                </Space>
+
+                                <div style={{marginTop: 'auto', textAlign: 'right'}}>
+                                    <Button 
+                                        type="primary"
+                                        onClick={() => handleViewDetail(post.id)}
+                                    >
+                                        Xem chi tiết
+                                    </Button>
+                                </div>
+                            </Card>
+                        </Col>
+                    ))
+                ) : (
+                    <Col span={24}>
+                        <Empty
+                            description="Chưa có tài liệu nào trong danh mục này"
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                    </Col>
+                )}
+            </Row>
         </div>
     );
 };
