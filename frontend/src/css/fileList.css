@@ -49,23 +49,26 @@
 }
 
 .file-content {
-    position: relative;
-    flex: 1;
+    max-height: calc(100vh - 200px);
     overflow: auto;
-    padding: 1rem;
-    margin: 0;
-    line-height: 1.6;
+    padding: 15px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
     cursor: grab;
-    user-select: text;
+}
+
+.file-content:active {
+    cursor: grabbing;
 }
 
 .file-content pre {
     margin: 0;
-    padding: 0;
-    font-family: inherit;
-    white-space: pre;
-    min-width: 100%;
-    cursor: text;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
 /* Khi đang kéo */
@@ -135,51 +138,33 @@
 /* 📌 Phân trang */
 .pagination {
     display: flex;
-    align-items: center;
     justify-content: center;
-    gap: 8px;
+    align-items: center;
     margin-top: 20px;
+    gap: 8px;
 }
 
 .pagination button {
     padding: 8px 12px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #dee2e6;
     background: white;
-    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 40px;
-    color: #4a5568;
-}
-
-.pagination button:hover:not(:disabled) {
-    background: #f7fafc;
-    border-color: #cbd5e0;
+    border-radius: 4px;
 }
 
 .pagination button.active {
-    background: #3182ce;
+    background: #007bff;
     color: white;
-    border-color: #2c5282;
+    border-color: #007bff;
 }
 
 .pagination button:disabled {
-    background: #edf2f7;
+    background: #e9ecef;
     cursor: not-allowed;
-    color: #a0aec0;
 }
 
 .pagination span {
-    color: #718096;
-    padding: 0 4px;
-}
-
-.pagination .pagination-arrow {
-    padding: 8px 16px;
-}
-
-.pagination .pagination-arrow:disabled {
-    opacity: 0.5;
+    margin: 0 8px;
 }
 
 .selected-row {

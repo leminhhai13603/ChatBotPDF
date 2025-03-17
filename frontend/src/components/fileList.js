@@ -7,39 +7,36 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const FileList = ({ refresh }) => {
   const [files, setFiles] = useState([]);
-  const [filteredFiles, setFilteredFiles] = useState([]);
   const [fileToDelete, setFileToDelete] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [roles, setRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState("all");
   const [loading, setLoading] = useState(true);
-  const [filesPerPage, setFilesPerPage] = useState(5);
-  const [totalCount, setTotalCount] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false); 
   const previewRef = useRef(null);
 
+  // Fetch roles khi component mount
   useEffect(() => {
     fetchRoles();
+  }, []);
+
+  // Fetch files khi page hoặc role thay đổi
+  useEffect(() => {
     fetchFiles();
-  }, [refresh]);
+  }, [currentPage, selectedRole, refresh]);
 
   const fetchRoles = async () => {
     try {
       const token = localStorage.getItem("token");
       const userId = localStorage.getItem("userId");
 
-      if (!userId) {
-        console.error("❌ Không tìm thấy userId trong localStorage");
-        return;
-      }
+      if (!userId) return;
 
       const response = await axios.get(`${API_BASE_URL}/auth/user-roles/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      console.log("🏷️ Raw roles response:", response.data);
 
       let formattedRoles = [];
       if (Array.isArray(response.data)) {
@@ -54,18 +51,11 @@ const FileList = ({ refresh }) => {
         }));
       }
 
-      console.log("🏷️ Formatted roles:", formattedRoles);
       setRoles(formattedRoles);
     } catch (error) {
       console.error("❌ Lỗi khi tải danh mục:", error);
     }
   };
-
-  useEffect(() => {
-    const userId = localStorage.getItem("userId");
-    const token = localStorage.getItem("token");
-    console.log("📱 User Info:", { userId, token }); 
-  }, []);
 
   const fetchFiles = async () => {
     try {
@@ -73,22 +63,21 @@ const FileList = ({ refresh }) => {
       const token = localStorage.getItem("token");
       
       const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
-        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          page: currentPage,
+          category: selectedRole !== "all" ? selectedRole : undefined
+        },
+        headers: { Authorization: `Bearer ${token}` }
       });
       
       if (response.data.success) {
-        const allFiles = response.data.files;
+        setFiles(response.data.files);
+        setTotalPages(response.data.totalPages);
         
-        let filteredResults = [...allFiles];
-        if (selectedRole !== "all") {
-          filteredResults = allFiles.filter(file => 
-            Number(file.group_id) === Number(selectedRole)
-          );
-        }
-        
-        setFiles(allFiles);
-        setFilteredFiles(filteredResults);
-        setTotalCount(response.data.total);
+        // Log để debug
+        console.log("Total pages:", response.data.totalPages);
+        console.log("Current page:", response.data.currentPage);
+        console.log("Files count:", response.data.files.length);
       }
     } catch (error) {
       console.error("❌ Lỗi khi tải danh sách file:", error);
@@ -97,102 +86,35 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  const debouncedSearch = useCallback(
-    debounce((query) => {
-      setSearchQuery(query);
-      setCurrentPage(1);
-      fetchFiles();
-    }, 500),
-    []
-  );
-
-  const handleSearch = (e) => {
-    debouncedSearch(e.target.value);
-  };
-
-  const filterFiles = useCallback(() => {
-    if (files.length === 0) return;
-    
-    let filtered = [...files];
-    const userRole = localStorage.getItem("userRole");
-    
-    if (userRole !== 'admin' && selectedRole !== "all") {
-      filtered = filtered.filter(file => 
-        Number(file.group_id) === Number(selectedRole)
-      );
-    }
-    
-    setFilteredFiles(filtered);
-  }, [files, selectedRole]);
-
-  useEffect(() => {
-    fetchFiles();
-  }, [refresh]);
-
   const handleCategoryChange = (e) => {
-    const newRole = e.target.value;
-    console.log("🔄 Selected role changed:", newRole);
-    setSelectedRole(newRole);
-    
-    if (newRole === "all") {
-      setFilteredFiles(files);
-    } else {
-      const filtered = files.filter(file => 
-        Number(file.group_id) === Number(newRole)
-      );
-      setFilteredFiles(filtered);
-    }
-    
-    setCurrentPage(1);
-  };
-
-  const truncateFileName = (fileName, maxLength = 30) => {
-    if (fileName.length <= maxLength) return fileName;
-    const extension = fileName.split('.').pop();
-    const nameWithoutExt = fileName.slice(0, -(extension.length + 1));
-    return `${nameWithoutExt.slice(0, maxLength - 3)}...${extension}`;
+    setSelectedRole(e.target.value);
+    setCurrentPage(1); // Reset về trang 1 khi đổi category
   };
 
   const handleDelete = async () => {
     try {
       const token = localStorage.getItem("token");
       
-      if (!token) {
-        console.error("❌ Không tìm thấy token");
-        return;
-      }
+      if (!token || !fileToDelete) return;
 
       await axios.delete(`${API_BASE_URL}/pdf/delete/${fileToDelete.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setFiles(files.filter(file => file.id !== fileToDelete.id));
-      setFilteredFiles(filteredFiles.filter(file => file.id !== fileToDelete.id));
-      
       setFileToDelete(null);
       setShowDeleteModal(false);
       setSelectedFile(null);
+      fetchFiles(); // Refresh list after delete
 
-      console.log("✅ Xóa file thành công");
     } catch (error) {
       console.error("❌ Lỗi khi xóa file:", error);
     }
   };
 
-  const confirmDelete = (file) => {
-    setFileToDelete(file);
-    setShowDeleteModal(true);
+  const handleFileClick = (file) => {
+    console.log("Selected file content:", file.full_text);
+    setSelectedFile(selectedFile?.id === file.id ? null : file);
   };
-
-  const closeDeleteModal = () => {
-    setFileToDelete(null);
-    setShowDeleteModal(false);
-  };
-
-  const totalPages = Math.ceil(filteredFiles.length / filesPerPage);
-  const indexOfLastFile = currentPage * filesPerPage;
-  const indexOfFirstFile = indexOfLastFile - filesPerPage;
-  const currentFiles = filteredFiles.slice(indexOfFirstFile, indexOfLastFile);
 
   const paginate = (pageNumber) => {
     if (pageNumber >= 1 && pageNumber <= totalPages) {
@@ -200,101 +122,10 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  const handleFileClick = (file) => {
-    if (selectedFile?.id === file.id) {
-      setSelectedFile(null);
-    } else {
-      setSelectedFile(file);
-    }
-  };
-
-  const isAnonymousCategory = (groupName) => {
-    return groupName?.toLowerCase().includes('hộp thư góp ý');
-  };
-
-  const FileContent = ({ content, fileType }) => {
-    const contentRef = useRef(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const [startX, setStartX] = useState(0);
-    const [startY, setStartY] = useState(0);
-    const [scrollLeft, setScrollLeft] = useState(0);
-    const [scrollTop, setScrollTop] = useState(0);
-    
-    const handleMouseDown = (e) => {
-        // Nếu đang chọn text thì không xử lý kéo
-        if (window.getSelection().toString()) {
-            return;
-        }
-
-        const content = contentRef.current;
-        if (!content) return;
-        
-        setIsDragging(true);
-        setStartX(e.pageX - content.offsetLeft);
-        setStartY(e.pageY - content.offsetTop);
-        setScrollLeft(content.scrollLeft);
-        setScrollTop(content.scrollTop);
-        content.style.cursor = 'grabbing';
-    };
-
-    const handleMouseMove = (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-
-        const content = contentRef.current;
-        const x = e.pageX - content.offsetLeft;
-        const y = e.pageY - content.offsetTop;
-        
-        // Tính khoảng cách di chuyển
-        const walkX = (x - startX) * 2;
-        const walkY = (y - startY) * 2;
-        
-        content.scrollLeft = scrollLeft - walkX;
-        content.scrollTop = scrollTop - walkY;
-    };
-
-    const handleMouseUp = () => {
-        setIsDragging(false);
-        if (contentRef.current) {
-            contentRef.current.style.cursor = 'grab';
-        }
-    };
-
-    useEffect(() => {
-        const content = contentRef.current;
-        if (content) {
-            content.addEventListener('mousemove', handleMouseMove);
-            content.addEventListener('mouseup', handleMouseUp);
-            content.addEventListener('mouseleave', handleMouseUp);
-
-            return () => {
-                content.removeEventListener('mousemove', handleMouseMove);
-                content.removeEventListener('mouseup', handleMouseUp);
-                content.removeEventListener('mouseleave', handleMouseUp);
-            };
-        }
-    }, [isDragging, startX, startY, scrollLeft, scrollTop]);
-
-    if (!content) {
-        return <div className="file-content">Không có nội dung</div>;
-    }
-
-    return (
-        <div 
-            ref={contentRef}
-            className={`file-content ${fileType === 'csv' ? 'ascii-table' : ''}`}
-            onMouseDown={handleMouseDown}
-        >
-            <pre>{content}</pre>
-        </div>
-    );
-  };
-
   const renderPaginationButtons = () => {
     const buttons = [];
-    const maxVisiblePages = 5; // Số trang hiển thị tối đa
+    const maxVisiblePages = 5;
 
-    // Luôn hiển thị trang đầu
     buttons.push(
       <button 
         key={1} 
@@ -305,32 +136,28 @@ const FileList = ({ refresh }) => {
       </button>
     );
 
-    // Thêm dấu ... bên trái
-    if (currentPage > maxVisiblePages - 2) {
+    if (currentPage > 3) {
       buttons.push(<span key="left-dots">...</span>);
     }
 
-    // Các trang ở giữa
-    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-      if (i <= currentPage + 1 && i >= currentPage - 1) {
-        buttons.push(
-          <button
-            key={i}
-            className={currentPage === i ? "active" : ""}
-            onClick={() => paginate(i)}
-          >
-            {i}
-          </button>
-        );
-      }
+    for (let i = Math.max(2, currentPage - 1); 
+         i <= Math.min(totalPages - 1, currentPage + 1); 
+         i++) {
+      buttons.push(
+        <button
+          key={i}
+          className={currentPage === i ? "active" : ""}
+          onClick={() => paginate(i)}
+        >
+          {i}
+        </button>
+      );
     }
 
-    // Thêm dấu ... bên phải
-    if (currentPage < totalPages - (maxVisiblePages - 3)) {
+    if (currentPage < totalPages - 2) {
       buttons.push(<span key="right-dots">...</span>);
     }
 
-    // Luôn hiển thị trang cuối nếu có nhiều hơn 1 trang
     if (totalPages > 1) {
       buttons.push(
         <button
@@ -346,13 +173,21 @@ const FileList = ({ refresh }) => {
     return buttons;
   };
 
+  const isAnonymousCategory = (groupName) => {
+    return groupName?.toLowerCase().includes('hộp thư góp ý');
+  };
+
+  const truncateFileName = (fileName, maxLength = 30) => {
+    if (fileName.length <= maxLength) return fileName;
+    const extension = fileName.split('.').pop();
+    const nameWithoutExt = fileName.slice(0, -(extension.length + 1));
+    return `${nameWithoutExt.slice(0, maxLength - 3)}...${extension}`;
+  };
+
   return (
     <div className="file-list-page">
       <div className="file-layout">
-        <div 
-          ref={previewRef}
-          className="file-preview"
-        >
+        <div ref={previewRef} className="file-preview">
           {selectedFile && (
             <>
               <h3>{selectedFile.pdf_name}</h3>
@@ -379,24 +214,12 @@ const FileList = ({ refresh }) => {
               onChange={handleCategoryChange}
             >
               <option value="all">🏷️ Tất cả</option>
-              {Array.isArray(roles) && roles.map((role) => (
-                <option 
-                  key={role.id} 
-                  value={role.id}
-                  title={role.name}
-                >
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>
                   {role.name}
                 </option>
               ))}
             </select>
-
-            <input
-              type="text"
-              className="form-control search-bar"
-              placeholder="🔍 Tìm kiếm theo tên hoặc nội dung..."
-              value={searchQuery}
-              onChange={handleSearch}
-            />
           </div>
 
           <div className="table-container">
@@ -418,42 +241,41 @@ const FileList = ({ refresh }) => {
                       <div className="loading-spinner">Đang tải...</div>
                     </td>
                   </tr>
-                ) : currentFiles.length === 0 ? (
+                ) : files.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="text-center">Không có file nào</td>
                   </tr>
                 ) : (
-                  currentFiles.map((file) => {
-                    const uploadDate = new Date(file.uploaded_at).toLocaleDateString('vi-VN');
-                    const fileType = file.file_type?.toUpperCase() || 'PDF';
-                    const isAnonymous = isAnonymousCategory(file.group_name);
-                    return (
-                      <tr key={file.id} className={selectedFile?.id === file.id ? "selected-row" : ""}>
-                        <td>
-                          <span
-                            className={`file-name clickable ${selectedFile?.id === file.id ? "selected" : ""}`}
-                            onClick={() => handleFileClick(file)}
-                            title={file.pdf_name}
-                          >
-                            {truncateFileName(file.pdf_name)}
-                          </span>
-                        </td>
-                        <td>{fileType}</td>
-                        <td>{isAnonymous ? 'Ẩn danh' : (file.uploader_name || 'Không xác định')}</td>
-                        <td>{uploadDate}</td>
-                        <td>{file.group_name}</td>
-                        <td className="action-column">
-                          <button 
-                            className="btn-delete" 
-                            onClick={() => confirmDelete(file)}
-                            title="Xóa file"
-                          >
-                            🗑️ Xoá
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  files.map((file) => (
+                    <tr key={file.id} className={selectedFile?.id === file.id ? "selected-row" : ""}>
+                      <td>
+                        <span
+                          className={`file-name clickable ${selectedFile?.id === file.id ? "selected" : ""}`}
+                          onClick={() => handleFileClick(file)}
+                          title={file.pdf_name}
+                        >
+                          {truncateFileName(file.pdf_name)}
+                        </span>
+                      </td>
+                      <td>{file.file_type?.toUpperCase() || 'PDF'}</td>
+                      <td>
+                        {isAnonymousCategory(file.group_name) ? 'Ẩn danh' : (file.uploader_name || 'Không xác định')}
+                      </td>
+                      <td>{new Date(file.uploaded_at).toLocaleDateString('vi-VN')}</td>
+                      <td>{file.group_name}</td>
+                      <td>
+                        <button 
+                          className="btn-delete" 
+                          onClick={() => {
+                            setFileToDelete(file);
+                            setShowDeleteModal(true);
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -485,11 +307,83 @@ const FileList = ({ refresh }) => {
         <div className="delete-modal">
           <div className="modal-content">
             <p>Bạn có chắc chắn muốn xóa file?</p>
-            <button className="btn btn-danger mx-2" onClick={handleDelete}>Xác nhận Xóa</button>
-            <button className="btn btn-secondary" onClick={closeDeleteModal}>Hủy</button>
+            <button onClick={handleDelete}>Xác nhận</button>
+            <button onClick={() => setShowDeleteModal(false)}>Hủy</button>
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const FileContent = ({ content, fileType }) => {
+  const contentRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [startY, setStartY] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+  
+  const handleMouseDown = (e) => {
+    if (window.getSelection().toString()) return;
+
+    const content = contentRef.current;
+    if (!content) return;
+    
+    setIsDragging(true);
+    setStartX(e.pageX - content.offsetLeft);
+    setStartY(e.pageY - content.offsetTop);
+    setScrollLeft(content.scrollLeft);
+    setScrollTop(content.scrollTop);
+    content.style.cursor = 'grabbing';
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+
+    const content = contentRef.current;
+    const x = e.pageX - content.offsetLeft;
+    const y = e.pageY - content.offsetTop;
+    
+    const walkX = (x - startX) * 2;
+    const walkY = (y - startY) * 2;
+    
+    content.scrollLeft = scrollLeft - walkX;
+    content.scrollTop = scrollTop - walkY;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    if (contentRef.current) {
+      contentRef.current.style.cursor = 'grab';
+    }
+  };
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (content) {
+      content.addEventListener('mousemove', handleMouseMove);
+      content.addEventListener('mouseup', handleMouseUp);
+      content.addEventListener('mouseleave', handleMouseUp);
+
+      return () => {
+        content.removeEventListener('mousemove', handleMouseMove);
+        content.removeEventListener('mouseup', handleMouseUp);
+        content.removeEventListener('mouseleave', handleMouseUp);
+      };
+    }
+  }, [isDragging, startX, startY, scrollLeft, scrollTop]);
+
+  const displayContent = content || 'Không có nội dung';
+
+  return (
+    <div 
+      ref={contentRef}
+      className={`file-content ${fileType === 'csv' ? 'ascii-table' : ''}`}
+      onMouseDown={handleMouseDown}
+    >
+      <pre>{displayContent}</pre>
     </div>
   );
 };

@@ -136,52 +136,62 @@ const extractKeywordsFromCSV = (chunk) => {
 };
 
 // ✅ Lấy danh sách tất cả file PDF
-exports.getAllPDFs = async (userId, userRoles) => {
+exports.getAllPDFs = async (userId, userRoles, page = 1) => {
     const client = await pool.connect();
     try {
-        const isAdmin = userRoles.some(role => role.toLowerCase() === 'admin');
-        let query;
+        const limit = 5; // Cố định 5 file mỗi trang
+        const offset = (page - 1) * limit;
+        const isAdmin = userRoles.includes('admin');
         
-        if (isAdmin) {
-            query = `
-                SELECT 
-                    pf.id, 
-                    pf.pdf_name, 
-                    pf.uploaded_at, 
-                    pf.full_text,
-                    pf.group_id,
-                    pf.file_type,
-                    u.username as uploader_name,
-                    r.name as group_name
+        let query = `
+            WITH total AS (
+                SELECT COUNT(*) as total_count
                 FROM pdf_files pf
-                LEFT JOIN users u ON pf.uploaded_by = u.id
-                LEFT JOIN roles r ON pf.group_id = r.id
-                ORDER BY pf.uploaded_at DESC;
-            `;
-            const result = await client.query(query);
-            return result.rows;
-        } else {
-            query = `
-                SELECT 
-                    pf.id, 
-                    pf.pdf_name, 
-                    pf.uploaded_at, 
-                    pf.full_text,
-                    pf.group_id,
-                    pf.file_type,
-                    u.username as uploader_name,
-                    r.name as group_name
-                FROM pdf_files pf
-                LEFT JOIN users u ON pf.uploaded_by = u.id
-                LEFT JOIN roles r ON pf.group_id = r.id
-                WHERE pf.group_id IN (
+                WHERE 1=1
+                ${!isAdmin ? `AND pf.group_id IN (
                     SELECT role_id FROM user_roles WHERE user_id = $1
-                )
-                ORDER BY pf.uploaded_at DESC;
-            `;
-            const result = await client.query(query, [userId]);
-            return result.rows;
+                )` : ''}
+            )
+            SELECT 
+                pf.id, 
+                pf.pdf_name, 
+                pf.uploaded_at, 
+                pf.full_text,
+                pf.group_id,
+                pf.file_type,
+                u.username as uploader_name,
+                r.name as group_name,
+                t.total_count
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN roles r ON pf.group_id = r.id
+            CROSS JOIN total t
+            WHERE 1=1
+        `;
+
+        const params = [];
+        
+        if (!isAdmin) {
+            query += ` AND pf.group_id IN (
+                SELECT role_id FROM user_roles WHERE user_id = $1
+            )`;
+            params.push(userId);
         }
+
+        query += ` ORDER BY pf.uploaded_at DESC
+                  LIMIT ${limit} 
+                  OFFSET $${params.length + 1}`;
+        
+        params.push(offset);
+
+        const result = await client.query(query, params);
+        
+        return {
+            files: result.rows,
+            total: parseInt(result.rows[0]?.total_count || 0),
+            totalPages: Math.ceil((result.rows[0]?.total_count || 0) / limit),
+            currentPage: page
+        };
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách file:", error);
         throw error;

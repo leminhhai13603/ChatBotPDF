@@ -109,51 +109,23 @@ exports.uploadFile = async (req, res) => {
 
 exports.getAllPDFs = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, category } = req.query;
-        const offset = (page - 1) * limit;
-        
-        let query = `
-            SELECT 
-                pf.id, 
-                pf.pdf_name,
-                pf.file_type,
-                pf.uploaded_at,
-                pf.group_id,
-                u.username as uploader_name,
-                r.name as group_name,
-                COUNT(*) OVER() as total_count
-            FROM pdf_files pf
-            LEFT JOIN users u ON pf.uploaded_by = u.id
-            LEFT JOIN roles r ON pf.group_id = r.id
-            WHERE 1=1
-        `;
-        
-        const params = [];
-        
-        if (search) {
-            query += ` AND (pf.pdf_name ILIKE $${params.length + 1})`;
-            params.push(`%${search}%`);
-        }
-        
-        if (category) {
-            query += ` AND pf.group_id = $${params.length + 1}`;
-            params.push(category);
-        }
-        
-        query += `
-            ORDER BY pf.uploaded_at DESC
-            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
-        `;
-        params.push(limit, offset);
-        
-        const result = await pool.query(query, params);
-        
+        const { page = 1, limit = 5 } = req.query;
+        const userId = req.user.id;
+        const userRoles = req.user.roles;
+
+        const result = await pdfModel.getAllPDFs(
+            userId, 
+            userRoles, 
+            parseInt(page), 
+            parseInt(limit)
+        );
+
         res.json({
             success: true,
-            files: result.rows,
-            total: result.rows[0]?.total_count || 0,
-            page: Number(page),
-            limit: Number(limit)
+            files: result.files,
+            total: result.total,
+            currentPage: parseInt(page),
+            totalPages: result.totalPages
         });
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách file:", error);
