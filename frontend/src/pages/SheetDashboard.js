@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Input, Space, Button, Table, message, Tabs } from 'antd';
+import { Card, Input, Space, Button, Table, message, Tabs, Modal } from 'antd';
 import { Timeline } from 'vis-timeline/standalone';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { SaveOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
@@ -17,6 +17,33 @@ const SheetDashboard = () => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
     });
+
+    const fetchTasks = useCallback(async (projectId) => {
+        if (!projectId) {
+            setData([]);
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem("token");
+            const response = await axios.get(
+                `${API_BASE_URL}/auth/projects/tasks?projectId=${projectId}`,
+                {
+                    headers: { 
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            
+            console.log('Tasks của project:', projectId, response.data);
+            
+            setData(Array.isArray(response.data) ? response.data : []);
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu:', error);
+            message.error('Lỗi khi lấy dữ liệu: ' + (error.response?.data?.error || error.message));
+        }
+    }, []);
 
     const initTimeline = useCallback(() => {
         if (!containerRef.current || !data.length) return;
@@ -78,88 +105,52 @@ const SheetDashboard = () => {
         }
     }, [data, currentDate]);
 
-    const fetchProjects = useCallback(async () => {
-        try {
-            const token = localStorage.getItem("token");
-            
-            if (!token) {
-                message.error('Vui lòng đăng nhập!');
-                window.location.href = '/login';
-                return;
-            }
-
-            // Kiểm tra token có hết hạn chưa
-            const tokenData = JSON.parse(atob(token.split('.')[1]));
-            if (tokenData.exp * 1000 < Date.now()) {
-                message.error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!');
-                localStorage.removeItem("token");
-                window.location.href = '/login';
-                return;
-            }
-
-            const response = await axios.get(
-                `${API_BASE_URL}/auth/projects`,
-                {
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
-
-            setProjects(Array.isArray(response.data) ? response.data : []);
-            if (Array.isArray(response.data) && response.data.length > 0) {
-                setActiveProject(response.data[0].id);
-            }
-        } catch (error) {
-            if (error.response?.data?.expired) {
-                message.error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!');
-                localStorage.removeItem("token");
-                window.location.href = '/login';
-            } else {
-                message.error('Lỗi khi lấy dự án: ' + (error.response?.data?.error || error.message));
-            }
-        }
-    }, []);
-
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (!token) {
             message.error('Vui lòng đăng nhập để tiếp tục!');
+            window.location.href = '/login';
             return;
         }
-    }, []);
-
-    const fetchTasks = useCallback(async () => {
-        if (!activeProject) {
-            setData([]);
-            return;
-        }
-
-        try {
-            const token = localStorage.getItem("token");
-            const response = await axios.get(
-                `${API_BASE_URL}/auth/projects/tasks?projectId=${activeProject}`,
-                {
-                    headers: { 
-                        Authorization: `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+        
+        // Load projects ngay khi component mount
+        const loadInitialData = async () => {
+            try {
+                const response = await axios.get(
+                    `${API_BASE_URL}/auth/projects`,
+                    {
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
                     }
+                );
+
+                if (Array.isArray(response.data) && response.data.length > 0) {
+                    setProjects(response.data);
+                    const firstProjectId = response.data[0].id;
+                    setActiveProject(firstProjectId);
+                    
+                    // Load tasks của project đầu tiên
+                    await fetchTasks(firstProjectId);
                 }
-            );
-            
-            console.log('Tasks của project:', activeProject, response.data);
-            
-            setData(Array.isArray(response.data) ? response.data : []);
-        } catch (error) {
-            console.error('Lỗi khi lấy dữ liệu:', error);
-            message.error('Lỗi khi lấy dữ liệu: ' + (error.response?.data?.error || error.message));
-        }
-    }, [activeProject]);
+            } catch (error) {
+                if (error.response?.data?.expired) {
+                    message.error('Phiên đăng nhập đã hết hạn!');
+                    localStorage.removeItem("token");
+                    window.location.href = '/login';
+                } else {
+                    message.error('Lỗi khi tải dữ liệu: ' + (error.response?.data?.error || error.message));
+                }
+            }
+        };
+
+        loadInitialData();
+    }, [fetchTasks]);
 
     useEffect(() => {
         if (activeProject) {
-            fetchTasks();
+            fetchTasks(activeProject);
         } else {
             setData([]);
         }
@@ -450,7 +441,7 @@ const SheetDashboard = () => {
 
             if (response.data) {
                 message.success('Đã lưu thành công');
-                await fetchTasks();
+                await fetchTasks(activeProject);
             }
         } catch (error) {
             console.error('Lỗi khi lưu:', error);
@@ -458,41 +449,41 @@ const SheetDashboard = () => {
         }
     };
 
-    const handleAddProject = async () => {
-        const projectName = prompt("Nhập tên dự án mới:");
-        if (projectName) {
-            try {
-                const token = localStorage.getItem("token");
-                const response = await axios.post(
-                    `${API_BASE_URL}/auth/projects`,
-                    { name: projectName },
-                    {
-                        headers: { 
-                            Authorization: `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
-                const newProject = {
-                    id: response.data.projectId,
-                    name: projectName
-                };
-                setProjects(prev => [...prev, newProject]);
-                setActiveProject(newProject.id);
-                setData([]);
-                message.success('Dự án đã được thêm thành công!');
-            } catch (error) {
-                console.error('Lỗi khi thêm dự án:', error);
-                message.error('Lỗi khi thêm dự án!');
-            }
-        }
+    const handleAddProject = () => {
+        let projectName = '';
+        
+        Modal.confirm({
+            title: 'Thêm Dự Án Mới',
+            className: 'custom-modal',
+            content: (
+                <Input
+                    className="project-input"
+                    placeholder="Nhập tên dự án"
+                    onChange={(e) => projectName = e.target.value}
+                    onPressEnter={(e) => {
+                        projectName = e.target.value;
+                        Modal.destroyAll();
+                        addNewProject(projectName);
+                    }}
+                />
+            ),
+            onOk: () => addNewProject(projectName),
+            okText: 'Thêm',
+            cancelText: 'Hủy',
+        });
     };
 
-    const handleDeleteProject = async (projectId) => {
+    const addNewProject = async (projectName) => {
+        if (!projectName.trim()) {
+            message.error('Vui lòng nhập tên dự án!');
+            return;
+        }
+
         try {
             const token = localStorage.getItem("token");
-            await axios.delete(
-                `${API_BASE_URL}/auth/projects/${projectId}`,
+            const response = await axios.post(
+                `${API_BASE_URL}/auth/projects`,
+                { name: projectName },
                 {
                     headers: { 
                         Authorization: `Bearer ${token}`,
@@ -500,17 +491,63 @@ const SheetDashboard = () => {
                     }
                 }
             );
-            setProjects(prev => prev.filter(project => project.id !== projectId));
-            if (activeProject === projectId) {
-                const remainingProjects = projects.filter(p => p.id !== projectId);
-                setActiveProject(remainingProjects.length > 0 ? remainingProjects[0].id : null);
-                setData([]);
-            }
-            message.success('Dự án đã được xóa thành công!');
+            const newProject = {
+                id: response.data.projectId,
+                name: projectName
+            };
+            setProjects(prev => [...prev, newProject]);
+            setActiveProject(newProject.id);
+            setData([]);
+            message.success('Dự án đã được thêm thành công!');
         } catch (error) {
-            console.error('Lỗi khi xóa dự án:', error);
-            message.error('Lỗi khi xóa dự án!');
+            console.error('Lỗi khi thêm dự án:', error);
+            message.error('Lỗi khi thêm dự án!');
         }
+    };
+
+    const handleDeleteProject = async (projectId) => {
+        const project = projects.find(p => p.id === projectId);
+        
+        Modal.confirm({
+            title: 'Xác nhận xóa dự án',
+            className: 'custom-modal delete-modal',
+            content: `Bạn có chắc chắn muốn xóa dự án "${project?.name}"? Tất cả công việc trong dự án này sẽ bị xóa và không thể khôi phục.`,
+            okText: 'Xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    const token = localStorage.getItem("token");
+                    await axios.delete(
+                        `${API_BASE_URL}/auth/projects/${projectId}`,
+                        {
+                            headers: { 
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    setProjects(prev => prev.filter(project => project.id !== projectId));
+                    
+                    if (activeProject === projectId) {
+                        const remainingProjects = projects.filter(p => p.id !== projectId);
+                        if (remainingProjects.length > 0) {
+                            setActiveProject(remainingProjects[0].id);
+                            await fetchTasks(remainingProjects[0].id);
+                        } else {
+                            setActiveProject(null);
+                            setData([]);
+                        }
+                    }
+                    
+                    message.success('Dự án đã được xóa thành công!');
+                } catch (error) {
+                    console.error('Lỗi khi xóa dự án:', error);
+                    message.error('Lỗi khi xóa dự án: ' + (error.response?.data?.error || error.message));
+                }
+            },
+        });
     };
 
     return (
