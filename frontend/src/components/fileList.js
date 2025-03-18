@@ -112,7 +112,7 @@ const FileList = ({ refresh }) => {
       setFileToDelete(null);
       setShowDeleteModal(false);
       setSelectedFile(null);
-      fetchFiles(); // Refresh list after delete
+      fetchFiles(); 
 
     } catch (error) {
       console.error("❌ Lỗi khi xóa file:", error);

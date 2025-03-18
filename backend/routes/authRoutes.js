@@ -2,8 +2,10 @@ const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
 const timelineController = require("../controllers/timelineController");
+const projectController = require("../controllers/projectController");
 const authenticateToken = require("../middleware/authMiddleware");
 const authorizeAdmin = require("../middleware/adminMiddleware");
+
 
 // ✅ Đăng nhập
 router.post("/login", authController.login);
@@ -24,6 +26,13 @@ router.get("/timeline/tasks", authenticateToken, timelineController.getAllTasks)
 router.post("/timeline/tasks", authenticateToken, timelineController.createTask);
 router.post("/timeline/tasks/batch", authenticateToken, timelineController.updateBatchTasks);
 router.delete("/timeline/tasks/:id", authenticateToken, timelineController.deleteTask);
+
+// Project routes
+router.post("/projects", authenticateToken, projectController.createProject);
+router.get("/projects", authenticateToken, projectController.getUserProjects);
+router.delete("/projects/:id", authenticateToken, projectController.deleteProject);
+router.get("/projects/tasks", authenticateToken, timelineController.getTasksByAccount);
+
 // ✅ --- Quản lý tài khoản (Chỉ Admin) ---
 router.use(authenticateToken, authorizeAdmin);
 

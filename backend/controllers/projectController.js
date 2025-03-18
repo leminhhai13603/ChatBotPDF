@@ -1,14 +1,23 @@
 const projectModel = require("../models/projectModel");
 
 exports.createProject = async (req, res) => {
-    const { name } = req.body;
-    const userId = req.user.id;
-
-    if (!name) {
-        return res.status(400).json({ error: "Tên dự án không được để trống!" });
-    }
-
     try {
+        const { name } = req.body;
+        // Kiểm tra token và userId
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: "Không tìm thấy token xác thực!" });
+        }
+
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: "Token không hợp lệ hoặc đã hết hạn!" });
+        }
+
+        if (!name) {
+            return res.status(400).json({ error: "Tên dự án không được để trống!" });
+        }
+
         const projectId = await projectModel.createProject(name, userId);
         res.json({ message: "Tạo dự án thành công!", projectId });
     } catch (error) {
@@ -18,9 +27,19 @@ exports.createProject = async (req, res) => {
 };
 
 exports.getUserProjects = async (req, res) => {
-    const userId = req.user.id;
-
     try {
+        // Thêm kiểm tra token
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: "Không tìm thấy token xác thực!" });
+        }
+
+        // Kiểm tra và lấy userId từ token
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: "Token không hợp lệ hoặc đã hết hạn!" });
+        }
+
         const projects = await projectModel.getProjectsByUserId(userId);
         res.json(projects);
     } catch (error) {
@@ -30,9 +49,19 @@ exports.getUserProjects = async (req, res) => {
 };
 
 exports.deleteProject = async (req, res) => {
-    const { id } = req.params;
-
     try {
+        const { id } = req.params;
+        // Kiểm tra token và userId
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: "Không tìm thấy token xác thực!" });
+        }
+
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(401).json({ error: "Token không hợp lệ hoặc đã hết hạn!" });
+        }
+
         await projectModel.deleteProject(id);
         res.json({ message: "Xóa dự án thành công!" });
     } catch (error) {

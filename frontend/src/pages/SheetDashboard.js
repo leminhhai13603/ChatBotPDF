@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Input, Space, Button, Table, message } from 'antd';
+import { Card, Input, Space, Button, Table, message, Tabs } from 'antd';
 import { Timeline } from 'vis-timeline/standalone';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { SaveOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
@@ -8,6 +8,8 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 const SheetDashboard = () => {
+    const [projects, setProjects] = useState([]);
+    const [activeProject, setActiveProject] = useState(null);
     const [data, setData] = useState([]);
     const timelineRef = useRef(null);
     const containerRef = useRef(null);
@@ -76,11 +78,68 @@ const SheetDashboard = () => {
         }
     }, [data, currentDate]);
 
+    const fetchProjects = useCallback(async () => {
+        try {
+            const token = localStorage.getItem("token");
+            
+            if (!token) {
+                message.error('Vui lòng đăng nhập!');
+                window.location.href = '/login';
+                return;
+            }
+
+            // Kiểm tra token có hết hạn chưa
+            const tokenData = JSON.parse(atob(token.split('.')[1]));
+            if (tokenData.exp * 1000 < Date.now()) {
+                message.error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!');
+                localStorage.removeItem("token");
+                window.location.href = '/login';
+                return;
+            }
+
+            const response = await axios.get(
+                `${API_BASE_URL}/auth/projects`,
+                {
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            setProjects(Array.isArray(response.data) ? response.data : []);
+            if (Array.isArray(response.data) && response.data.length > 0) {
+                setActiveProject(response.data[0].id);
+            }
+        } catch (error) {
+            if (error.response?.data?.expired) {
+                message.error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại!');
+                localStorage.removeItem("token");
+                window.location.href = '/login';
+            } else {
+                message.error('Lỗi khi lấy dự án: ' + (error.response?.data?.error || error.message));
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            message.error('Vui lòng đăng nhập để tiếp tục!');
+            return;
+        }
+    }, []);
+
     const fetchTasks = useCallback(async () => {
+        if (!activeProject) {
+            setData([]);
+            return;
+        }
+
         try {
             const token = localStorage.getItem("token");
             const response = await axios.get(
-                `${API_BASE_URL}/auth/timeline/tasks`,
+                `${API_BASE_URL}/auth/projects/tasks?projectId=${activeProject}`,
                 {
                     headers: { 
                         Authorization: `Bearer ${token}`,
@@ -88,15 +147,23 @@ const SheetDashboard = () => {
                     }
                 }
             );
-            setData(response.data);
+            
+            console.log('Tasks của project:', activeProject, response.data);
+            
+            setData(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Lỗi khi lấy dữ liệu:', error);
+            message.error('Lỗi khi lấy dữ liệu: ' + (error.response?.data?.error || error.message));
         }
-    }, []);
+    }, [activeProject]);
 
     useEffect(() => {
-        fetchTasks();
-    }, []);
+        if (activeProject) {
+            fetchTasks();
+        } else {
+            setData([]);
+        }
+    }, [activeProject, fetchTasks]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -128,14 +195,12 @@ const SheetDashboard = () => {
 
     const handleDelete = async (id) => {
         try {
-            // Nếu là id tạm thời (temp_), chỉ cần xóa khỏi state
             if (id.toString().startsWith('temp_')) {
                 setData(prevData => prevData.filter(item => item.id !== id));
                 message.success('Đã xóa dòng tạm thời');
                 return;
             }
 
-            // Nếu là id thật, thực hiện xóa trên server
             console.log('Đang xóa task với ID:', id);
             const token = localStorage.getItem("token");
             
@@ -192,14 +257,16 @@ const SheetDashboard = () => {
 
     const formatDateForInput = (dateString) => {
         if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toISOString().split('T')[0];
+        return dateString.split('T')[0];
     };
 
     const handleCellChange = (id, field, value) => {
         setData(prevData => 
             prevData.map(item => {
                 if (item.id === id) {
+                    if (field === 'start_date' || field === 'end_date') {
+                        return { ...item, [field]: value };
+                    }
                     return { ...item, [field]: value };
                 }
                 return item;
@@ -219,7 +286,7 @@ const SheetDashboard = () => {
                     value={text || ''}
                     onChange={(e) => handleCellChange(record.id, 'step', e.target.value)}
                     placeholder="Nhập tên công việc"
-                    style={{ width: '100%' }}
+                    style={{ width: '100%', maxWidth: '200px' }}
                 />
             )
         },
@@ -310,8 +377,15 @@ const SheetDashboard = () => {
     ];
 
     const handleAddRow = () => {
+        if (!activeProject) {
+            message.warning('Vui lòng chọn dự án trước khi thêm công việc!');
+            return;
+        }
+
         const today = new Date();
-        const formattedDate = today.toISOString().split('T')[0];
+        const formattedDate = today.getFullYear() + '-' + 
+            String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+            String(today.getDate()).padStart(2, '0');
         
         const newTask = {
             id: 'temp_' + Date.now(),
@@ -320,7 +394,8 @@ const SheetDashboard = () => {
             notes: '',
             start_date: formattedDate,
             end_date: formattedDate,
-            status: 'Pending'
+            status: 'Pending',
+            project_id: Number(activeProject)
         };
         
         setData(prevData => [...prevData, newTask]);
@@ -332,41 +407,39 @@ const SheetDashboard = () => {
 
     const handleSave = async () => {
         try {
+            if (!activeProject) {
+                message.warning('Vui lòng chọn dự án trước khi lưu!');
+                return;
+            }
+
             const token = localStorage.getItem("token");
             
             const tasksToUpdate = data.map(task => {
-                const startDate = new Date(task.start_date);
-                const endDate = new Date(task.end_date);
-                startDate.setDate(startDate.getDate() + 1);
-                endDate.setDate(endDate.getDate() + 1);
-
-                if (task.id?.toString().startsWith('temp_') || !task.id) {
-                    return {
-                        step: task.step || '',
-                        assignee: task.assignee || '',
-                        notes: task.notes || '',
-                        start_date: startDate.toISOString().split('T')[0],
-                        end_date: endDate.toISOString().split('T')[0],
-                        status: 'Pending'
-                    };
-                }
+                // Chuyển đổi ngày về đúng múi giờ local
+                const start = new Date(task.start_date);
+                const end = new Date(task.end_date);
                 
+                // Thêm 7 tiếng để bù timezone
+                start.setHours(start.getHours() + 7);
+                end.setHours(end.getHours() + 7);
+
                 return {
-                    id: task.id,
-                    step: task.step,
-                    assignee: task.assignee,
-                    notes: task.notes,
-                    start_date: startDate.toISOString().split('T')[0],
-                    end_date: endDate.toISOString().split('T')[0],
-                    status: task.status || 'Pending'
+                    id: task.id?.toString().startsWith('temp_') ? undefined : task.id,
+                    step: task.step || '',
+                    assignee: task.assignee || '',
+                    notes: task.notes || '',
+                    start_date: start.toISOString().split('T')[0],
+                    end_date: end.toISOString().split('T')[0],
+                    status: task.status || 'Pending',
+                    project_id: activeProject
                 };
             });
 
-            console.log('Dữ liệu gửi lên server:', tasksToUpdate);
+            console.log('Tasks to save:', tasksToUpdate);
 
             const response = await axios.post(
                 `${API_BASE_URL}/auth/timeline/tasks/batch`,
-                { tasks: tasksToUpdate },
+                tasksToUpdate,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -375,11 +448,68 @@ const SheetDashboard = () => {
                 }
             );
 
-            message.success('Đã lưu thành công');
-            await fetchTasks();
+            if (response.data) {
+                message.success('Đã lưu thành công');
+                await fetchTasks();
+            }
         } catch (error) {
             console.error('Lỗi khi lưu:', error);
-            message.error('Lỗi khi lưu dữ liệu: ' + (error.response?.data?.details || error.message));
+            message.error('Lỗi khi lưu dữ liệu: ' + (error.response?.data?.error || error.message));
+        }
+    };
+
+    const handleAddProject = async () => {
+        const projectName = prompt("Nhập tên dự án mới:");
+        if (projectName) {
+            try {
+                const token = localStorage.getItem("token");
+                const response = await axios.post(
+                    `${API_BASE_URL}/auth/projects`,
+                    { name: projectName },
+                    {
+                        headers: { 
+                            Authorization: `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+                const newProject = {
+                    id: response.data.projectId,
+                    name: projectName
+                };
+                setProjects(prev => [...prev, newProject]);
+                setActiveProject(newProject.id);
+                setData([]);
+                message.success('Dự án đã được thêm thành công!');
+            } catch (error) {
+                console.error('Lỗi khi thêm dự án:', error);
+                message.error('Lỗi khi thêm dự án!');
+            }
+        }
+    };
+
+    const handleDeleteProject = async (projectId) => {
+        try {
+            const token = localStorage.getItem("token");
+            await axios.delete(
+                `${API_BASE_URL}/auth/projects/${projectId}`,
+                {
+                    headers: { 
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            setProjects(prev => prev.filter(project => project.id !== projectId));
+            if (activeProject === projectId) {
+                const remainingProjects = projects.filter(p => p.id !== projectId);
+                setActiveProject(remainingProjects.length > 0 ? remainingProjects[0].id : null);
+                setData([]);
+            }
+            message.success('Dự án đã được xóa thành công!');
+        } catch (error) {
+            console.error('Lỗi khi xóa dự án:', error);
+            message.error('Lỗi khi xóa dự án!');
         }
     };
 
@@ -391,48 +521,83 @@ const SheetDashboard = () => {
             gap: '20px',
             overflow: 'hidden'  
         }}>
-            {/* Bảng bên trái */}
-            <Card 
-                title="Danh Sách Công Việc"
-                style={{ 
-                    flex: '0 0 50%',
-                    borderRadius: 0,
-                    height: '100vh',
-                    overflow: 'auto' 
-                }}
-                extra={
-                    <Space>
+            <div style={{ flex: '0 0 50%', display: 'flex', flexDirection: 'column', maxWidth: '50%' }}>
+                <Space style={{ marginBottom: '16px' }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAddProject}>
+                        Thêm Dự Án
+                    </Button>
+                </Space>
+                <div style={{ marginBottom: '16px' }}>
+                    {projects.map(project => (
                         <Button
-                            type="default"
-                            icon={<PlusOutlined />}
-                            onClick={handleAddRow}
+                            key={project.id}
+                            type={activeProject === project.id ? 'primary' : 'default'}
+                            onClick={() => setActiveProject(project.id)}
+                            style={{ marginRight: '8px', marginBottom: '8px' }}
                         >
-                            Thêm dòng mới
+                            {project.name}
+                            {activeProject === project.id && (
+                                <DeleteOutlined
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteProject(project.id);
+                                    }}
+                                    style={{ marginLeft: '8px' }}
+                                />
+                            )}
                         </Button>
-                        <Button
-                            type="primary"
-                            icon={<SaveOutlined />}
-                            onClick={handleSave}
-                        >
-                            Lưu vào database
-                        </Button>
-                    </Space>
-                }
-            >
-                <Table
-                    columns={columns}
-                    dataSource={data}
-                    rowKey={record => record.id}
-                    pagination={false}
-                    scroll={{ y: 'calc(100vh - 250px)', x: 'max-content' }}
-                    rowClassName={(record) => 
-                        record.id?.toString().startsWith('temp_') ? 'unsaved-row' : ''
+                    ))}
+                </div>
+                <Card 
+                    title="Danh Sách Công Việc"
+                    style={{ 
+                        flex: '1',
+                        borderRadius: 0,
+                        overflow: 'auto',
+                        maxWidth: '100%'
+                    }}
+                    bodyStyle={{ padding: '0' }}
+                    extra={
+                        <Space>
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={handleAddRow}
+                                disabled={!activeProject}
+                            >
+                                Thêm dòng
+                            </Button>
+                            <Button
+                                type="primary"
+                                icon={<SaveOutlined />}
+                                onClick={handleSave}
+                                disabled={!activeProject}
+                            >
+                                Lưu vào database
+                            </Button>
+                        </Space>
                     }
-                    bordered
-                    size="small"
-                    style={{ marginTop: '16px' }}
-                />
-            </Card>
+                >
+                    <Table
+                        columns={columns}
+                        dataSource={data}
+                        rowKey={record => record.id}
+                        pagination={false}
+                        scroll={{ y: 'calc(100vh - 250px)', x: '100%' }}
+                        rowClassName={(record) => 
+                            record.id?.toString().startsWith('temp_') ? 'unsaved-row' : ''
+                        }
+                        bordered
+                        size="small"
+                        style={{ 
+                            marginTop: '16px', 
+                            tableLayout: 'fixed',
+                            width: '100%',
+                            maxWidth: '100%'
+                        }}
+                    />
+                </Card>
+            </div>
 
             {/* Timeline bên phải */}
             <Card 
@@ -450,7 +615,8 @@ const SheetDashboard = () => {
                     flex: '0 0 50%',
                     borderRadius: 0,
                     height: '100vh',
-                    overflow: 'hidden'  
+                    overflow: 'hidden',
+                    maxWidth: '100%'
                 }}
             >
                 <div 
@@ -586,6 +752,61 @@ const SheetDashboard = () => {
                 .vis-time-axis .vis-grid.vis-major {
                     border-color: #e0e0e0 !important;
                 }
+
+                /* Thêm các styles mới để kiểm soát chiều rộng */
+                .ant-table {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+
+                .ant-table-container {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+
+                .ant-table-content {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+
+                .ant-table-body {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+
+                .ant-table-expanded-row-fixed {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    position: relative !important;
+                    left: auto !important;
+                    overflow: hidden !important;
+                }
+
+                .ant-table-row-expand-icon-cell {
+                    width: auto !important;
+                    min-width: auto !important;
+                }
+
+                .ant-table-thead > tr > th {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .ant-table-tbody > tr > td {
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                /* Kiểm soát chiều rộng của input và textarea */
+                .ant-input,
+                .ant-input-textarea {
+                    max-width: 100% !important;
+                    width: 100% !important;
+                }
+
+                /* Ngăn chặn việc mở rộng của các phần tử con */
             `}</style>
         </div>
     );

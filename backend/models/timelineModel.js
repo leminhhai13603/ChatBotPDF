@@ -1,14 +1,14 @@
 const pool = require("../config/db");
 
-exports.getAllTasks = async (userId, projectId) => {
+exports.getAllTasks = async (userId) => {
     const client = await pool.connect();
     try {
         const query = `
             SELECT * FROM timeline_tasks 
-            WHERE user_id = $1 AND project_id = $2 
+            WHERE user_id = $1 
             ORDER BY start_date ASC
         `;
-        const result = await client.query(query, [userId, projectId]);
+        const result = await client.query(query, [userId]);
         return result.rows;
     } catch (error) {
         throw new Error("Lỗi khi lấy danh sách tasks!");
@@ -19,13 +19,13 @@ exports.getAllTasks = async (userId, projectId) => {
 
 exports.createTask = async (taskData) => {
     try {
-        const { user_id, step, status, assignee, start_date, end_date, notes } = taskData;
+        const { user_id, step, status, assignee, start_date, end_date, notes, project_id } = taskData;
         const result = await pool.query(
             `INSERT INTO timeline_tasks 
-             (user_id, step, status, assignee, start_date, end_date, notes)
-             VALUES ($1, $2, $3::task_status, $4, $5, $6, $7)
+             (user_id, step, status, assignee, start_date, end_date, notes, project_id)
+             VALUES ($1, $2, $3::task_status, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [user_id, step, status, assignee, start_date, end_date, notes]
+            [user_id, step, status, assignee, start_date, end_date, notes, project_id]
         );
         return result.rows[0];
     } catch (error) {
@@ -40,18 +40,28 @@ exports.updateBatchTasks = async (tasks, userId) => {
 
         const results = [];
         for (const task of tasks) {
-            if (task.id) {
-                // Cập nhật task hiện có, kiểm tra user_id
+            if (!task.project_id) {
+                throw new Error('project_id là bắt buộc cho mỗi task');
+            }
+
+            // Log để debug
+            console.log('Task dates before save:', {
+                start: task.start_date,
+                end: task.end_date
+            });
+
+            if (task.id && !task.id.toString().startsWith('temp_')) {
                 const result = await client.query(
                     `UPDATE timeline_tasks 
                      SET step = $1, 
                          status = $2, 
                          assignee = $3, 
-                         start_date = $4::date, 
-                         end_date = $5::date, 
+                         start_date = $4, 
+                         end_date = $5, 
                          notes = $6,
+                         project_id = $7,
                          updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $7 AND user_id = $8
+                     WHERE id = $8 AND user_id = $9
                      RETURNING *`,
                     [
                         task.step || '',
@@ -60,6 +70,7 @@ exports.updateBatchTasks = async (tasks, userId) => {
                         task.start_date,
                         task.end_date,
                         task.notes || '',
+                        task.project_id,
                         task.id,
                         userId
                     ]
@@ -68,11 +79,10 @@ exports.updateBatchTasks = async (tasks, userId) => {
                     results.push(result.rows[0]);
                 }
             } else {
-                // Thêm task mới với user_id
                 const result = await client.query(
                     `INSERT INTO timeline_tasks 
-                     (user_id, step, status, assignee, start_date, end_date, notes)
-                     VALUES ($1, $2, $3, $4, $5::date, $6::date, $7)
+                     (user_id, step, status, assignee, start_date, end_date, notes, project_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                      RETURNING *`,
                     [
                         userId,
@@ -81,7 +91,8 @@ exports.updateBatchTasks = async (tasks, userId) => {
                         task.assignee || '',
                         task.start_date,
                         task.end_date,
-                        task.notes || ''
+                        task.notes || '',
+                        task.project_id
                     ]
                 );
                 results.push(result.rows[0]);
@@ -120,6 +131,23 @@ exports.deleteTask = async (taskId, userId) => {
         await client.query('ROLLBACK');
         console.error("Database error when deleting:", error);
         throw new Error(`Lỗi khi xóa task: ${error.message}`);
+    } finally {
+        client.release();
+    }
+};
+
+exports.getTasksByAssignee = async (userId, projectId) => {
+    const client = await pool.connect();
+    try {
+        const query = `
+            SELECT * FROM timeline_tasks 
+            WHERE user_id = $1 AND project_id = $2 
+            ORDER BY assignee, start_date ASC
+        `;
+        const result = await client.query(query, [userId, projectId]);
+        return result.rows;
+    } catch (error) {
+        throw new Error("Lỗi khi lấy danh sách tasks theo người thực hiện!");
     } finally {
         client.release();
     }
