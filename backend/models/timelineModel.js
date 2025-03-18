@@ -1,14 +1,19 @@
 const pool = require("../config/db");
 
-exports.getAllTasks = async (userId) => {
+exports.getAllTasks = async (userId, projectId) => {
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            "SELECT * FROM timeline_tasks WHERE user_id = $1 ORDER BY start_date ASC",
-            [userId]
-        );
+        const query = `
+            SELECT * FROM timeline_tasks 
+            WHERE user_id = $1 AND project_id = $2 
+            ORDER BY start_date ASC
+        `;
+        const result = await client.query(query, [userId, projectId]);
         return result.rows;
     } catch (error) {
         throw new Error("Lỗi khi lấy danh sách tasks!");
+    } finally {
+        client.release();
     }
 };
 

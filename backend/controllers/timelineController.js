@@ -1,8 +1,10 @@
 const timelineModel = require("../models/timelineModel");
 
 exports.getAllTasks = async (req, res) => {
+    const { projectId } = req.query; // Lấy projectId từ query
+
     try {
-        const tasks = await timelineModel.getAllTasks(req.user.id);
+        const tasks = await timelineModel.getAllTasks(req.user.id, projectId);
         res.json(tasks);
     } catch (error) {
         console.error("Lỗi lấy tasks:", error);

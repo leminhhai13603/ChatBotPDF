@@ -5,6 +5,7 @@ const pdfRoutes = require("./routes/pdfRoutes");
 const authRoutes = require("./routes/authRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const sheetRoutes = require('./routes/sheetRoutes');
+const projectRoutes = require("./routes/projectRoutes");
 const path = require("path");
 
 const app = express();
@@ -23,6 +24,7 @@ app.use("/api/pdf", pdfRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use('/api/sheets', sheetRoutes);
+app.use("/api/projects", projectRoutes);
 
 // Serve React app
 app.get('*', (req, res) => {
