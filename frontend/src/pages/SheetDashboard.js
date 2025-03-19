@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Input, Space, Button, Table, message, Tabs, Modal } from 'antd';
+import { Card, Input, Space, Button, Table, message, Tabs, Modal, Select } from 'antd';
 import { Timeline } from 'vis-timeline/standalone';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { SaveOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+const STATUS_OPTIONS = [
+    { value: 'pending', label: 'Chờ xử lý', color: '#ffd666' },
+    { value: 'in-progress', label: 'Đang thực hiện', color: '#69c0ff' },
+    { value: 'completed', label: 'Hoàn thành', color: '#95de64' },
+    { value: 'delayed', label: 'Bị trễ', color: '#ff7875' }
+];
 
 const SheetDashboard = () => {
     const [projects, setProjects] = useState([]);
@@ -36,9 +43,16 @@ const SheetDashboard = () => {
                 }
             );
             
-            console.log('Tasks của project:', projectId, response.data);
+            console.log('Tasks từ backend:', response.data);
             
-            setData(Array.isArray(response.data) ? response.data : []);
+            // Đảm bảo mỗi task có status
+            const tasksWithStatus = Array.isArray(response.data) ? 
+                response.data.map(task => ({
+                    ...task,
+                    status: task.status || 'pending' // Gán giá trị mặc định nếu không có status
+                })) : [];
+            
+            setData(tasksWithStatus);
         } catch (error) {
             console.error('Lỗi khi lấy dữ liệu:', error);
             message.error('Lỗi khi lấy dữ liệu: ' + (error.response?.data?.error || error.message));
@@ -55,7 +69,7 @@ const SheetDashboard = () => {
                 start: new Date(new Date(task.start_date).getTime() - 24 * 60 * 60 * 1000),
                 end: new Date(task.end_date),
                 type: 'range',
-                className: `custom-item-${index % 10}`,
+                className: `status-${task.status || 'pending'}`,
                 group: index + 1
             }));
 
@@ -255,8 +269,9 @@ const SheetDashboard = () => {
         setData(prevData => 
             prevData.map(item => {
                 if (item.id === id) {
-                    if (field === 'start_date' || field === 'end_date') {
-                        return { ...item, [field]: value };
+                    // Đảm bảo cập nhật đúng giá trị status
+                    if (field === 'status') {
+                        console.log('Cập nhật status:', value); // Log để debug
                     }
                     return { ...item, [field]: value };
                 }
@@ -337,10 +352,34 @@ const SheetDashboard = () => {
             )
         },
         {
+            title: 'Trạng thái',
+            dataIndex: 'status',
+            key: 'status',
+            width: '15%',
+            render: (text, record) => (
+                <Select
+                    value={text || 'pending'}
+                    onChange={(value) => {
+                        console.log('Status changed:', value); // Log để debug
+                        handleCellChange(record.id, 'status', value);
+                    }}
+                    style={{ width: '100%' }}
+                    options={STATUS_OPTIONS.map(option => ({
+                        value: option.value,
+                        label: option.label,
+                        style: {
+                            backgroundColor: option.color,
+                            color: option.value === 'pending' ? '#000' : '#fff'
+                        }
+                    }))}
+                />
+            )
+        },
+        {
             title: 'Ghi chú',
             dataIndex: 'notes',
             key: 'notes',
-            width: '25%',
+            width: '20%',
             render: (text, record) => (
                 <Input.TextArea
                     key={record.id}
@@ -385,7 +424,7 @@ const SheetDashboard = () => {
             notes: '',
             start_date: formattedDate,
             end_date: formattedDate,
-            status: 'Pending',
+            status: 'pending',
             project_id: Number(activeProject)
         };
         
@@ -414,6 +453,9 @@ const SheetDashboard = () => {
                 start.setHours(start.getHours() + 7);
                 end.setHours(end.getHours() + 7);
 
+                // Đảm bảo status luôn có giá trị
+                const status = task.status || 'pending';
+
                 return {
                     id: task.id?.toString().startsWith('temp_') ? undefined : task.id,
                     step: task.step || '',
@@ -421,7 +463,7 @@ const SheetDashboard = () => {
                     notes: task.notes || '',
                     start_date: start.toISOString().split('T')[0],
                     end_date: end.toISOString().split('T')[0],
-                    status: task.status || 'Pending',
+                    status: status, // Thêm status vào dữ liệu gửi đi
                     project_id: activeProject
                 };
             });
@@ -679,6 +721,10 @@ const SheetDashboard = () => {
                     background-color: #95de64 !important;
                     color: #000;
                 }
+                .status-delayed {
+                    background-color: #ff7875 !important;
+                    color: #fff !important;
+                }
                 .vis-timeline {
                     border: none !important;
                     border: none;
@@ -844,6 +890,35 @@ const SheetDashboard = () => {
                 }
 
                 /* Ngăn chặn việc mở rộng của các phần tử con */
+
+                /* Status colors for timeline items */
+                .status-pending {
+                    background-color: #ffd666 !important;
+                    color: #000 !important;
+                }
+                .status-in-progress {
+                    background-color: #69c0ff !important;
+                    color: #fff !important;
+                }
+                .status-completed {
+                    background-color: #95de64 !important;
+                    color: #fff !important;
+                }
+                .status-delayed {
+                    background-color: #ff7875 !important;
+                    color: #fff !important;
+                }
+
+                /* Status colors for Select dropdown */
+                .ant-select-item-option-content {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .ant-select-selection-item {
+                    font-weight: 500;
+                }
             `}</style>
         </div>
     );

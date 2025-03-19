@@ -25,15 +25,23 @@ exports.getAllTasks = async (req, res) => {
 
 exports.createTask = async (req, res) => {
     try {
-        const { step, status, assignee, start_date, end_date, notes } = req.body;
+        const { step, status, assignee, start_date, end_date, notes, project_id } = req.body;
+        
+        // Validate status
+        const validStatus = ['pending', 'in-progress', 'completed', 'delayed'];
+        if (status && !validStatus.includes(status.toLowerCase())) {
+            return res.status(400).json({ error: "Trạng thái không hợp lệ" });
+        }
+
         const task = await timelineModel.createTask({
             user_id: req.user.id,
             step,
-            status,
+            status: status?.toLowerCase() || 'pending',
             assignee,
             start_date,
             end_date,
-            notes
+            notes,
+            project_id
         });
         res.json(task);
     } catch (error) {
@@ -55,6 +63,15 @@ exports.updateBatchTasks = async (req, res) => {
         if (!Array.isArray(tasks)) {
             return res.status(400).json({ error: "Dữ liệu không hợp lệ" });
         }
+
+        // Validate status cho mỗi task
+        const validStatus = ['pending', 'in-progress', 'completed', 'delayed'];
+        tasks.forEach(task => {
+            if (task.status && !validStatus.includes(task.status.toLowerCase())) {
+                console.warn(`Invalid status "${task.status}" for task, defaulting to "pending"`);
+                task.status = 'pending';
+            }
+        });
 
         // Gọi model để xử lý
         const result = await timelineModel.updateBatchTasks(tasks, userId);

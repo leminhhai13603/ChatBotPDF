@@ -20,15 +20,23 @@ exports.getAllTasks = async (userId) => {
 exports.createTask = async (taskData) => {
     try {
         const { user_id, step, status, assignee, start_date, end_date, notes, project_id } = taskData;
+        
+        // Validate status
+        const validStatus = ['pending', 'in-progress', 'completed', 'delayed'];
+        const normalizedStatus = status && validStatus.includes(status.toLowerCase()) 
+            ? status.toLowerCase() 
+            : 'pending';
+
         const result = await pool.query(
             `INSERT INTO timeline_tasks 
              (user_id, step, status, assignee, start_date, end_date, notes, project_id)
              VALUES ($1, $2, $3::task_status, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [user_id, step, status, assignee, start_date, end_date, notes, project_id]
+            [user_id, step, normalizedStatus, assignee, start_date, end_date, notes, project_id]
         );
         return result.rows[0];
     } catch (error) {
+        console.error("Error in createTask:", error);
         throw new Error("Lỗi khi tạo task mới!");
     }
 };
@@ -44,17 +52,17 @@ exports.updateBatchTasks = async (tasks, userId) => {
                 throw new Error('project_id là bắt buộc cho mỗi task');
             }
 
-            // Log để debug
-            console.log('Task dates before save:', {
-                start: task.start_date,
-                end: task.end_date
-            });
+            // Đảm bảo status luôn có giá trị hợp lệ
+            const validStatus = ['pending', 'in-progress', 'completed', 'delayed'];
+            const status = task.status && validStatus.includes(task.status.toLowerCase()) 
+                ? task.status.toLowerCase() 
+                : 'pending';
 
             if (task.id && !task.id.toString().startsWith('temp_')) {
                 const result = await client.query(
                     `UPDATE timeline_tasks 
                      SET step = $1, 
-                         status = $2, 
+                         status = $2::task_status, 
                          assignee = $3, 
                          start_date = $4, 
                          end_date = $5, 
@@ -65,7 +73,7 @@ exports.updateBatchTasks = async (tasks, userId) => {
                      RETURNING *`,
                     [
                         task.step || '',
-                        task.status || 'Pending',
+                        status,
                         task.assignee || '',
                         task.start_date,
                         task.end_date,
@@ -82,12 +90,12 @@ exports.updateBatchTasks = async (tasks, userId) => {
                 const result = await client.query(
                     `INSERT INTO timeline_tasks 
                      (user_id, step, status, assignee, start_date, end_date, notes, project_id)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                     VALUES ($1, $2, $3::task_status, $4, $5, $6, $7, $8)
                      RETURNING *`,
                     [
                         userId,
                         task.step || '',
-                        task.status || 'Pending',
+                        status,
                         task.assignee || '',
                         task.start_date,
                         task.end_date,
