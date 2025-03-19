@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Input, Space, Button, Table, message, Tabs, Modal, Select } from 'antd';
+import { Card, Input, Space, Button, Table, message, Tabs, Modal, Select, Tooltip } from 'antd';
 import { Timeline } from 'vis-timeline/standalone';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
 import { SaveOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
@@ -282,72 +282,62 @@ const SheetDashboard = () => {
 
     const columns = [
         {
-            title: 'Tên công việc',
+            title: 'CV',
             dataIndex: 'step',
             key: 'step',
-            width: '20%',
+            width: '15%',
             render: (text, record) => (
-                <Input
-                    key={record.id}
-                    value={text || ''}
-                    onChange={(e) => handleCellChange(record.id, 'step', e.target.value)}
-                    placeholder="Nhập tên công việc"
-                    style={{ width: '100%', maxWidth: '200px' }}
-                />
+                <Tooltip title={text || 'Nhập tên công việc'}>
+                    <Input
+                        value={text || ''}
+                        onChange={(e) => handleCellChange(record.id, 'step', e.target.value)}
+                        placeholder="Tên CV"
+                        style={{ width: '100%' }}
+                    />
+                </Tooltip>
             )
         },
         {
-            title: 'Người thực hiện',
+            title: 'Người',
             dataIndex: 'assignee',
             key: 'assignee',
-            width: '15%',
+            width: '10%',
             render: (text, record) => (
-                <Input
-                    key={record.id}
-                    value={text || ''}
-                    onChange={(e) => handleCellChange(record.id, 'assignee', e.target.value)}
-                    placeholder="Nhập tên người thực hiện"
-                    style={{ width: '100%' }}
-                />
+                <Tooltip title={text || 'Nhập người thực hiện'}>
+                    <Input
+                        value={text || ''}
+                        onChange={(e) => handleCellChange(record.id, 'assignee', e.target.value)}
+                        placeholder="Người"
+                        style={{ width: '100%' }}
+                    />
+                </Tooltip>
             )
         },
         {
-            title: 'Ngày bắt đầu',
+            title: 'Bắt đầu',
             dataIndex: 'start_date',
             key: 'start_date',
-            width: '15%',
+            width: '12%',
             render: (text, record) => (
                 <input
                     type="date"
                     value={formatDateForInput(text)}
                     onChange={(e) => handleCellChange(record.id, 'start_date', e.target.value)}
-                    style={{ 
-                        width: '100%',
-                        padding: '4px 11px',
-                        border: '1px solid #d9d9d9',
-                        borderRadius: '2px',
-                        fontSize: '14px'
-                    }}
+                    style={{ width: '100%' }}
                 />
             )
         },
         {
-            title: 'Ngày kết thúc',
+            title: 'Kết thúc',
             dataIndex: 'end_date',
             key: 'end_date',
-            width: '15%',
+            width: '12%',
             render: (text, record) => (
                 <input
                     type="date"
                     value={formatDateForInput(text)}
                     onChange={(e) => handleCellChange(record.id, 'end_date', e.target.value)}
-                    style={{ 
-                        width: '100%',
-                        padding: '4px 11px',
-                        border: '1px solid #d9d9d9',
-                        borderRadius: '2px',
-                        fontSize: '14px'
-                    }}
+                    style={{ width: '100%' }}
                 />
             )
         },
@@ -355,14 +345,11 @@ const SheetDashboard = () => {
             title: 'Trạng thái',
             dataIndex: 'status',
             key: 'status',
-            width: '15%',
+            width: '20%',
             render: (text, record) => (
                 <Select
                     value={text || 'pending'}
-                    onChange={(value) => {
-                        console.log('Status changed:', value); // Log để debug
-                        handleCellChange(record.id, 'status', value);
-                    }}
+                    onChange={(value) => handleCellChange(record.id, 'status', value)}
                     style={{ width: '100%' }}
                     options={STATUS_OPTIONS.map(option => ({
                         value: option.value,
@@ -379,22 +366,23 @@ const SheetDashboard = () => {
             title: 'Ghi chú',
             dataIndex: 'notes',
             key: 'notes',
-            width: '20%',
+            width: '15%',
             render: (text, record) => (
-                <Input.TextArea
-                    key={record.id}
-                    value={text || ''}
-                    onChange={(e) => handleCellChange(record.id, 'notes', e.target.value)}
-                    placeholder="Nhập ghi chú"
-                    autoSize={{ minRows: 1, maxRows: 3 }}
-                    style={{ width: '100%' }}
-                />
+                <Tooltip title={text || 'Chưa có ghi chú'}>
+                    <Input.TextArea
+                        value={text || ''}
+                        onChange={(e) => handleCellChange(record.id, 'notes', e.target.value)}
+                        placeholder="Ghi chú"
+                        autoSize={{ minRows: 1, maxRows: 2 }}
+                        style={{ width: '100%' }}
+                    />
+                </Tooltip>
             )
         },
         {
-            title: 'Thao tác',
+            title: '',
             key: 'action',
-            width: '10%',
+            width: '5%',
             render: (_, record) => (
                 <Button
                     type="text"
