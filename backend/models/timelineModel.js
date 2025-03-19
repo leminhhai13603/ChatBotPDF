@@ -151,4 +151,78 @@ exports.getTasksByAssignee = async (userId, projectId) => {
     } finally {
         client.release();
     }
+};
+
+// Thêm hàm mới để admin có thể xem tất cả tasks
+exports.getAllTasksForAdmin = async (projectId = null) => {
+    const client = await pool.connect();
+    try {
+        let query;
+        let params = [];
+        
+        if (projectId) {
+            query = `
+                SELECT t.*, u.fullname as creator_name, p.name as project_name
+                FROM timeline_tasks t
+                LEFT JOIN users u ON t.user_id = u.id
+                LEFT JOIN projects p ON t.project_id = p.id
+                WHERE t.project_id = $1
+                ORDER BY t.start_date ASC
+            `;
+            params = [projectId];
+        } else {
+            query = `
+                SELECT t.*, u.fullname as creator_name, p.name as project_name
+                FROM timeline_tasks t
+                LEFT JOIN users u ON t.user_id = u.id
+                LEFT JOIN projects p ON t.project_id = p.id
+                ORDER BY t.start_date ASC
+            `;
+        }
+        
+        const result = await client.query(query, params);
+        return result.rows;
+    } catch (error) {
+        console.error("Lỗi khi lấy tất cả tasks cho admin:", error);
+        throw new Error("Lỗi khi lấy danh sách tasks!");
+    } finally {
+        client.release();
+    }
+};
+
+// Thêm hàm mới để admin có thể xem tất cả tasks theo người thực hiện
+exports.getTasksByAssigneeForAdmin = async (projectId = null) => {
+    const client = await pool.connect();
+    try {
+        let query;
+        let params = [];
+        
+        if (projectId) {
+            query = `
+                SELECT t.*, u.fullname as creator_name, p.name as project_name
+                FROM timeline_tasks t
+                LEFT JOIN users u ON t.user_id = u.id
+                LEFT JOIN projects p ON t.project_id = p.id
+                WHERE t.project_id = $1
+                ORDER BY t.assignee, t.start_date ASC
+            `;
+            params = [projectId];
+        } else {
+            query = `
+                SELECT t.*, u.fullname as creator_name, p.name as project_name
+                FROM timeline_tasks t
+                LEFT JOIN users u ON t.user_id = u.id
+                LEFT JOIN projects p ON t.project_id = p.id
+                ORDER BY t.assignee, t.start_date ASC
+            `;
+        }
+        
+        const result = await client.query(query, params);
+        return result.rows;
+    } catch (error) {
+        console.error("Lỗi khi lấy tasks theo người thực hiện cho admin:", error);
+        throw new Error("Lỗi khi lấy danh sách tasks theo người thực hiện!");
+    } finally {
+        client.release();
+    }
 }; 

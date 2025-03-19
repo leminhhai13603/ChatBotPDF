@@ -45,4 +45,24 @@ exports.deleteProject = async (projectId) => {
     } finally {
         client.release();
     }
+};
+
+// Thêm hàm mới để admin xem tất cả dự án
+exports.getAllProjects = async () => {
+    const client = await pool.connect();
+    try {
+        const result = await client.query(`
+            SELECT p.*, u.fullname as creator_name,
+            (SELECT COUNT(*) FROM timeline_tasks t WHERE t.project_id = p.id) as task_count
+            FROM projects p
+            LEFT JOIN users u ON p.user_id = u.id
+            ORDER BY p.created_at DESC
+        `);
+        return result.rows;
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy tất cả dự án:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
 }; 

@@ -5,7 +5,17 @@ exports.getAllTasks = async (req, res) => {
     const { projectId } = req.query; 
 
     try {
-        const tasks = await timelineModel.getAllTasks(req.user.id, projectId);
+        // Kiểm tra vai trò admin
+        const isAdmin = req.user.roles.includes('admin');
+        
+        // Lấy tasks dựa vào vai trò
+        let tasks;
+        if (isAdmin) {
+            tasks = await timelineModel.getAllTasksForAdmin(projectId);
+        } else {
+            tasks = await timelineModel.getAllTasks(req.user.id, projectId);
+        }
+        
         res.json(tasks);
     } catch (error) {
         console.error("Lỗi lấy tasks:", error);
@@ -89,7 +99,17 @@ exports.getTasksByAssignee = async (req, res) => {
     const { projectId } = req.query;
 
     try {
-        const tasks = await timelineModel.getTasksByAssignee(req.user.id, projectId);
+        // Kiểm tra vai trò admin
+        const isAdmin = req.user.roles.includes('admin');
+        
+        // Lấy tasks dựa vào vai trò
+        let tasks;
+        if (isAdmin) {
+            tasks = await timelineModel.getTasksByAssigneeForAdmin(projectId);
+        } else {
+            tasks = await timelineModel.getTasksByAssignee(req.user.id, projectId);
+        }
+        
         res.json(tasks);
     } catch (error) {
         console.error("Lỗi lấy tasks:", error);
@@ -100,13 +120,20 @@ exports.getTasksByAssignee = async (req, res) => {
 exports.getTasksByAccount = async (req, res) => {
     try {
         const userId = req.user.id;
-        const projectId = req.query.projectId; // Lấy projectId từ query params
+        const projectId = req.query.projectId;
+        const isAdmin = req.user.roles.includes('admin');
 
         if (!projectId) {
             return res.status(400).json({ error: "Thiếu projectId" });
         }
 
-        const tasks = await timelineModel.getTasksByAssignee(userId, projectId);
+        let tasks;
+        if (isAdmin) {
+            tasks = await timelineModel.getTasksByAssigneeForAdmin(projectId);
+        } else {
+            tasks = await timelineModel.getTasksByAssignee(userId, projectId);
+        }
+        
         res.json(tasks);
     } catch (error) {
         console.error("Lỗi khi lấy tasks:", error);

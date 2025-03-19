@@ -18,6 +18,11 @@ const authenticateToken = (req, res, next) => {
             roles: user.roles || []
         };
         
+        // Chuyển đổi roles thành mảng nếu nó là string
+        if (typeof req.user.roles === 'string') {
+            req.user.roles = [req.user.roles];
+        }
+        
         next();
     });
 };

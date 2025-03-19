@@ -39,8 +39,19 @@ exports.getUserProjects = async (req, res) => {
         if (!userId) {
             return res.status(401).json({ error: "Token không hợp lệ hoặc đã hết hạn!" });
         }
+        
+        // Kiểm tra vai trò admin
+        const isAdmin = req.user.roles.includes('admin');
+        
+        let projects;
+        if (isAdmin) {
+            // Admin xem tất cả dự án
+            projects = await projectModel.getAllProjects();
+        } else {
+            // User thường chỉ xem dự án của mình
+            projects = await projectModel.getProjectsByUserId(userId);
+        }
 
-        const projects = await projectModel.getProjectsByUserId(userId);
         res.json(projects);
     } catch (error) {
         console.error("Lỗi lấy dự án:", error);
