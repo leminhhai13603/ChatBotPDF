@@ -88,17 +88,17 @@ const SheetDashboard = () => {
                 console.log(`Task ${index} assigned to color index ${colorIndex}, class custom-item-${colorIndex}`);
                 
                 return {
-                    id: task.id || index,
-                    content: '',
+                id: task.id || index,
+                content: '',
                     title: `${task.step || 'Chưa có tên'} (${task.assignee || 'Chưa phân công'}) - Trạng thái: ${
                         STATUS_OPTIONS.find(opt => opt.value === (task.status || 'pending'))?.label || 'Chờ xử lý'
                     }${task.notes ? `\nGhi chú: ${task.notes}` : ''}`,
-                    start: new Date(new Date(task.start_date).getTime() - 24 * 60 * 60 * 1000),
-                    end: new Date(task.end_date),
-                    type: 'range',
+                start: new Date(new Date(task.start_date).getTime() - 24 * 60 * 60 * 1000),
+                end: new Date(task.end_date),
+                type: 'range',
                     className: `custom-item-${colorIndex}`, // Sử dụng chỉ số màu
                     style: `background-color: ${TASK_COLORS[colorIndex]} !important; border-color: ${TASK_COLORS[colorIndex]} !important;`, // Thêm style trực tiếp
-                    group: index + 1
+                group: index + 1
                 };
             });
 
@@ -182,19 +182,23 @@ const SheetDashboard = () => {
     const fetchProjects = useCallback(async () => {
         try {
             const token = localStorage.getItem("token");
-            const response = await axios.get(
-                `${API_BASE_URL}/auth/projects`,
-                {
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                const response = await axios.get(
+                    `${API_BASE_URL}/auth/projects`,
+                    {
+                        headers: { 
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
                     }
-                }
-            );
+                );
 
-            if (Array.isArray(response.data) && response.data.length > 0) {
-                // Tải danh mục từ localStorage và gán vào dự án
-                const projectsWithCategory = loadProjectCategories(response.data);
+                if (Array.isArray(response.data) && response.data.length > 0) {
+                // Ưu tiên sử dụng category từ server nếu có
+                let projectsWithCategory = response.data.map(project => ({
+                    ...project,
+                    // Nếu project có trường category từ server thì sử dụng, nếu không thì set default là 'new'
+                    category: project.category || 'new'
+                }));
                 
                 console.log("Dự án sau khi tải với danh mục:", projectsWithCategory);
                 setProjects(projectsWithCategory);
@@ -206,21 +210,20 @@ const SheetDashboard = () => {
                     if (projectsInCategory.length > 0) {
                         const firstProjectId = projectsInCategory[0].id;
                         setActiveProject(firstProjectId);
-                        await fetchTasks(firstProjectId);
+                    await fetchTasks(firstProjectId);
                     } else if (projectsWithCategory.length > 0) {
-                        // Nếu không có dự án trong danh mục hiện tại, giữ danh mục hiện tại
-                        // và không chọn dự án nào
+                        // Nếu không có dự án trong danh mục hiện tại, giữ danh mục hiện tại và không chọn dự án nào
                         setData([]);
                     }
                 }
-            }
-        } catch (error) {
+                }
+            } catch (error) {
             console.error("Lỗi khi tải dự án:", error);
-            if (error.response?.data?.expired) {
-                message.error('Phiên đăng nhập đã hết hạn!');
-                localStorage.removeItem("token");
-                window.location.href = '/login';
-            } else {
+                if (error.response?.data?.expired) {
+                    message.error('Phiên đăng nhập đã hết hạn!');
+                    localStorage.removeItem("token");
+                    window.location.href = '/login';
+                } else {
                 message.error('Lỗi khi tải dự án: ' + (error.response?.data?.error || error.message));
             }
         }
@@ -348,11 +351,11 @@ const SheetDashboard = () => {
                 const textColor = isLightColor(backgroundColor) ? 'black' : 'white';
                 
                 return (
-                    <Tooltip title={text || 'Nhập tên công việc'}>
-                        <Input
-                            value={text || ''}
-                            onChange={(e) => handleCellChange(record.id, 'step', e.target.value)}
-                            placeholder="Tên CV"
+                <Tooltip title={text || 'Nhập tên công việc'}>
+                    <Input
+                        value={text || ''}
+                        onChange={(e) => handleCellChange(record.id, 'step', e.target.value)}
+                        placeholder="Tên CV"
                             style={{ 
                                 width: '100%',
                                 backgroundColor,
@@ -360,8 +363,8 @@ const SheetDashboard = () => {
                                 border: 'none',
                                 fontWeight: 'bold'
                             }}
-                        />
-                    </Tooltip>
+                    />
+                </Tooltip>
                 );
             }
         },
@@ -556,9 +559,9 @@ const SheetDashboard = () => {
             className: 'custom-modal',
             content: (
                 <div>
-                    <Input
-                        className="project-input"
-                        placeholder="Nhập tên dự án"
+                <Input
+                    className="project-input"
+                    placeholder="Nhập tên dự án"
                         onChange={(e) => projectInput.name = e.target.value}
                         style={{ marginBottom: '10px' }}
                     />
@@ -597,10 +600,13 @@ const SheetDashboard = () => {
         try {
             const token = localStorage.getItem("token");
             
-            // Tạo dự án trên backend
+            // Tạo dự án trên backend với category
             const response = await axios.post(
                 `${API_BASE_URL}/auth/projects`,
-                { name: projectInput.name }, // Không gửi category nếu backend không hỗ trợ
+                { 
+                    name: projectInput.name,
+                    category: projectInput.category // Thêm category vào request
+                },
                 {
                     headers: { 
                         Authorization: `Bearer ${token}`,
@@ -613,21 +619,13 @@ const SheetDashboard = () => {
             const newProject = {
                 id: response.data.projectId,
                 name: projectInput.name,
-                category: projectInput.category // Đảm bảo lưu category đã chọn
+                category: projectInput.category
             };
             
             console.log("Dự án mới được tạo:", newProject); // Debug
             
             // Cập nhật state projects với dự án mới
-            setProjects(prev => {
-                const updated = [...prev, newProject];
-                console.log("Danh sách dự án mới:", updated);
-                
-                // Lưu danh sách dự án có category vào localStorage
-                saveProjectCategories(updated);
-                
-                return updated;
-            });
+            setProjects(prev => [...prev, newProject]);
             
             // Đặt active project là dự án mới
             setActiveProject(newProject.id);
@@ -641,61 +639,15 @@ const SheetDashboard = () => {
             message.success('Dự án đã được thêm thành công!');
         } catch (error) {
             console.error('Lỗi khi thêm dự án:', error);
-            message.error('Lỗi khi thêm dự án: ' + (error.response?.data?.error || error.message));
-        }
-    };
-
-    // Thêm hàm lưu category của dự án vào localStorage
-    const saveProjectCategories = (projectsList) => {
-        try {
-            const projectCategories = projectsList.map(project => ({
-                id: project.id,
-                category: project.category || 'new'
-            }));
-            localStorage.setItem('projectCategories', JSON.stringify(projectCategories));
-            console.log("Đã lưu danh mục dự án vào localStorage:", projectCategories);
-        } catch (error) {
-            console.error("Lỗi khi lưu danh mục dự án:", error);
-        }
-    };
-
-    // Thêm hàm tải category của dự án từ localStorage
-    const loadProjectCategories = (projectsList) => {
-        try {
-            const savedCategories = localStorage.getItem('projectCategories');
-            if (!savedCategories) return projectsList;
             
-            const categoriesData = JSON.parse(savedCategories);
-            console.log("Đã tải danh mục dự án từ localStorage:", categoriesData);
-            
-            return projectsList.map(project => {
-                const savedProject = categoriesData.find(p => p.id === project.id);
-                return savedProject 
-                    ? {...project, category: savedProject.category} 
-                    : {...project, category: project.category || 'new'};
-            });
-        } catch (error) {
-            console.error("Lỗi khi tải danh mục dự án:", error);
-            return projectsList;
-        }
-    };
-
-    // Sửa lại hàm xóa dự án để cập nhật localStorage
-    const handleDeleteProject = async (projectId) => {
-        const project = projects.find(p => p.id === projectId);
-        
-        Modal.confirm({
-            title: 'Xác nhận xóa dự án',
-            className: 'custom-modal delete-modal',
-            content: `Bạn có chắc chắn muốn xóa dự án "${project?.name}"? Tất cả công việc trong dự án này sẽ bị xóa và không thể khôi phục.`,
-            okText: 'Xóa',
-            okType: 'danger',
-            cancelText: 'Hủy',
-            onOk: async () => {
+            // Kiểm tra xem API có hỗ trợ category không
+            if (error.response?.status === 400 && error.response?.data?.error?.includes('category')) {
+                // Nếu API không hỗ trợ category, thử lại không có category
                 try {
                     const token = localStorage.getItem("token");
-                    await axios.delete(
-                        `${API_BASE_URL}/auth/projects/${projectId}`,
+                    const response = await axios.post(
+                        `${API_BASE_URL}/auth/projects`,
+                        { name: projectInput.name },
                         {
                             headers: { 
                                 Authorization: `Bearer ${token}`,
@@ -703,43 +655,37 @@ const SheetDashboard = () => {
                             }
                         }
                     );
-
-                    // Cập nhật danh sách dự án và lưu vào localStorage
-                    const updatedProjects = projects.filter(project => project.id !== projectId);
-                    setProjects(updatedProjects);
-                    saveProjectCategories(updatedProjects);
                     
-                    if (activeProject === projectId) {
-                        const remainingProjects = projects.filter(p => p.id !== projectId);
-                        if (remainingProjects.length > 0) {
-                            // Tìm dự án đầu tiên trong cùng danh mục
-                            const projectsInSameCategory = remainingProjects.filter(p => p.category === activeCategory);
-                            
-                            if (projectsInSameCategory.length > 0) {
-                                setActiveProject(projectsInSameCategory[0].id);
-                                await fetchTasks(projectsInSameCategory[0].id);
-                            } else {
-                                setActiveProject(null);
-                                setData([]);
-                            }
-                        } else {
-                            setActiveProject(null);
-                            setData([]);
-                        }
-                    }
+                    // Tạo đối tượng dự án mới với category được chọn
+                    const newProject = {
+                        id: response.data.projectId,
+                        name: projectInput.name,
+                        category: projectInput.category
+                    };
                     
-                    message.success('Dự án đã được xóa thành công!');
-                } catch (error) {
-                    console.error('Lỗi khi xóa dự án:', error);
-                    message.error('Lỗi khi xóa dự án: ' + (error.response?.data?.error || error.message));
+                    // Cập nhật state projects với dự án mới
+                    setProjects(prev => [...prev, newProject]);
+                    
+                    // Sau đó cập nhật category riêng
+                    handleChangeProjectCategory(newProject.id, projectInput.category, false);
+                    
+                    // Đặt active project là dự án mới
+                    setActiveProject(newProject.id);
+                    
+                    // Cập nhật category hiện tại thành category của dự án mới
+                    setActiveCategory(projectInput.category);
+                    
+                    // Reset data
+                    setData([]);
+                    
+                    message.success('Dự án đã được thêm thành công!');
+                } catch (secondError) {
+                    message.error('Lỗi khi thêm dự án: ' + (secondError.response?.data?.error || secondError.message));
                 }
-            },
-        });
-    };
-
-    const formatDateForInput = (dateString) => {
-        if (!dateString) return '';
-        return dateString.split('T')[0];
+            } else {
+                message.error('Lỗi khi thêm dự án: ' + (error.response?.data?.error || error.message));
+            }
+        }
     };
 
     // Thêm hàm chuyển đổi danh mục
@@ -768,9 +714,9 @@ const SheetDashboard = () => {
     };
 
     // Thêm logic lưu category với dự án hiện có
-    const handleChangeProjectCategory = async (projectId, newCategory) => {
-        try {
-            const token = localStorage.getItem("token");
+    const handleChangeProjectCategory = async (projectId, newCategory, showMessage = true) => {
+                try {
+                    const token = localStorage.getItem("token");
             const project = projects.find(p => p.id === projectId);
             
             if (!project) {
@@ -783,31 +729,57 @@ const SheetDashboard = () => {
                 p.id === projectId ? {...p, category: newCategory} : p
             ));
             
-            // Thử cập nhật trên server nếu API hỗ trợ
+            // Cập nhật trên server
             try {
                 await axios.put(
-                    `${API_BASE_URL}/auth/projects/${projectId}`,
+                        `${API_BASE_URL}/auth/projects/${projectId}`,
                     { 
                         name: project.name,
                         category: newCategory
                     },
-                    {
-                        headers: { 
-                            Authorization: `Bearer ${token}`,
-                            'Content-Type': 'application/json'
+                        {
+                            headers: { 
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
                         }
-                    }
-                );
-                
-                message.success('Đã cập nhật danh mục dự án thành công!');
+                    );
+
+                if (showMessage) {
+                    message.success('Đã cập nhật danh mục dự án thành công!');
+                }
             } catch (error) {
-                console.warn('API không hỗ trợ cập nhật category, sử dụng lưu trữ local');
-                // Vẫn giữ thay đổi trong state local
+                console.warn('API không hỗ trợ cập nhật category trực tiếp, thử phương pháp khác');
+                
+                // Tạo hoặc cập nhật meta-data của dự án
+                try {
+                    await axios.post(
+                        `${API_BASE_URL}/auth/projects/${projectId}/metadata`,
+                        { 
+                            category: newCategory
+                        },
+                        {
+                            headers: { 
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+                    
+                    if (showMessage) {
+                        message.success('Đã cập nhật danh mục dự án thành công!');
+                    }
+                } catch (metaError) {
+                    console.error('Không thể cập nhật metadata:', metaError);
+                    // Giữ nguyên thay đổi trong state local
+                }
             }
             
-        } catch (error) {
+                } catch (error) {
             console.error('Lỗi khi thay đổi danh mục dự án:', error);
-            message.error('Lỗi khi thay đổi danh mục dự án');
+            if (showMessage) {
+                message.error('Lỗi khi thay đổi danh mục dự án');
+            }
         }
     };
 
@@ -845,6 +817,69 @@ const SheetDashboard = () => {
             document.removeEventListener('contextmenu', handleContextMenu);
         };
     }, []);
+
+    // Thêm hàm formatDateForInput nếu chưa có
+    const formatDateForInput = (dateString) => {
+        if (!dateString) return '';
+        // Chuyển đổi chuỗi ngày thành định dạng YYYY-MM-DD cho input type="date"
+        return dateString.split('T')[0];
+    };
+
+    // Đảm bảo handleDeleteProject đã được định nghĩa đúng vị trí
+    const handleDeleteProject = async (projectId) => {
+        const project = projects.find(p => p.id === projectId);
+        
+        Modal.confirm({
+            title: 'Xác nhận xóa dự án',
+            className: 'custom-modal delete-modal',
+            content: `Bạn có chắc chắn muốn xóa dự án "${project?.name}"? Tất cả công việc trong dự án này sẽ bị xóa và không thể khôi phục.`,
+            okText: 'Xóa',
+            okType: 'danger',
+            cancelText: 'Hủy',
+            onOk: async () => {
+                try {
+                    const token = localStorage.getItem("token");
+                    await axios.delete(
+                        `${API_BASE_URL}/auth/projects/${projectId}`,
+                        {
+                            headers: { 
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            }
+                        }
+                    );
+
+                    // Cập nhật danh sách dự án
+                    const updatedProjects = projects.filter(project => project.id !== projectId);
+                    setProjects(updatedProjects);
+                    
+                    if (activeProject === projectId) {
+                        const remainingProjects = projects.filter(p => p.id !== projectId);
+                        if (remainingProjects.length > 0) {
+                            // Tìm dự án đầu tiên trong cùng danh mục
+                            const projectsInSameCategory = remainingProjects.filter(p => p.category === activeCategory);
+                            
+                            if (projectsInSameCategory.length > 0) {
+                                setActiveProject(projectsInSameCategory[0].id);
+                                await fetchTasks(projectsInSameCategory[0].id);
+                            } else {
+                                setActiveProject(null);
+                                setData([]);
+                            }
+                        } else {
+                            setActiveProject(null);
+                            setData([]);
+                        }
+                    }
+                    
+                    message.success('Dự án đã được xóa thành công!');
+                } catch (error) {
+                    console.error('Lỗi khi xóa dự án:', error);
+                    message.error('Lỗi khi xóa dự án: ' + (error.response?.data?.error || error.message));
+                }
+            },
+        });
+    };
 
     return (
         <div style={{ 
@@ -903,10 +938,10 @@ const SheetDashboard = () => {
                     {projects
                         .filter(project => project.category === activeCategory)
                         .map(project => (
-                            <Button
-                                key={project.id}
-                                type={activeProject === project.id ? 'primary' : 'default'}
-                                onClick={() => setActiveProject(project.id)}
+                        <Button
+                            key={project.id}
+                            type={activeProject === project.id ? 'primary' : 'default'}
+                            onClick={() => setActiveProject(project.id)}
                                 style={{ 
                                     backgroundColor: activeProject === project.id ? getProjectColor(project) : undefined,
                                     borderColor: getProjectColor(project),
@@ -924,18 +959,18 @@ const SheetDashboard = () => {
                                     marginRight: '6px',
                                     display: activeProject === project.id ? 'none' : 'block'
                                 }} />
-                                {project.name}
-                                {activeProject === project.id && (
-                                    <DeleteOutlined
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleDeleteProject(project.id);
-                                        }}
-                                        style={{ marginLeft: '8px' }}
-                                    />
-                                )}
-                            </Button>
-                        ))}
+                            {project.name}
+                            {activeProject === project.id && (
+                                <DeleteOutlined
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteProject(project.id);
+                                    }}
+                                    style={{ marginLeft: '8px' }}
+                                />
+                            )}
+                        </Button>
+                    ))}
                 </div>
                 
                 <Card 
@@ -1057,7 +1092,7 @@ const SheetDashboard = () => {
 
 export default SheetDashboard;
 
-<style>{`
+            <style>{`
     /* Reset các style cũ liên quan đến status */
     .status-pending, .status-in-progress, .status-completed, .status-delayed {
         display: none !important;
@@ -1086,15 +1121,15 @@ export default SheetDashboard;
     .custom-item-19 { background-color: ${TASK_COLORS[19]} !important; color: #000 !important; }
     
     /* Style cơ bản cho timeline */
-    .vis-item {
-        border-radius: 4px !important;
-        border: none !important;
-        height: 28px !important;
-        line-height: 28px !important;
-        padding: 0 8px !important;
-        font-weight: 500 !important;
-    }
-    
+                .vis-item {
+                    border-radius: 4px !important;
+                    border: none !important;
+                    height: 28px !important;
+                    line-height: 28px !important;
+                    padding: 0 8px !important;
+                    font-weight: 500 !important;
+                }
+
     /* Các style khác giữ nguyên */
     /* ... existing styles ... */
 
@@ -1142,5 +1177,5 @@ export default SheetDashboard;
     .vis-item {
         border-width: 1px !important;
         box-shadow: 0 1px 5px rgba(0,0,0,0.2) !important;
-    }
-`}</style>
+                }
+            `}</style>
