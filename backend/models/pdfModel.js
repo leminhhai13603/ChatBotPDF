@@ -60,12 +60,14 @@ exports.savePDFMetadata = async (fileName, fileData, uploadedBy, groupId, subCat
     }
 };
 
-exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
+exports.savePDFChunks = async (fileId, chunks, embeddings) => {
     const client = await pool.connect();
     try {
-        // Kiểm tra file type
+        await client.query('BEGIN');
+
+        // Truy vấn cấu trúc để kiểm tra các cột
         const fileTypeQuery = `SELECT file_type FROM pdf_files WHERE id = $1`;
-        const fileTypeResult = await client.query(fileTypeQuery, [pdfId]);
+        const fileTypeResult = await client.query(fileTypeQuery, [fileId]);
         const fileType = fileTypeResult.rows[0]?.file_type;
 
         const insertQuery = `
@@ -76,8 +78,6 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
         `;
-        
-        await client.query('BEGIN');
         
         for (let i = 0; i < chunks.length; i++) {
             if (!Array.isArray(embeddings[i])) {
@@ -92,18 +92,18 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
                 is_title_chunk: i === 0, // Dòng đầu thường là header
                 keywords: extractKeywordsFromCSV(chunks[i]),
                 chunk_length: chunks[i].length
-            } : (metadata[i] || {
+            } : {
                 chunk_index: i,
-                section_title: "Không xác định",
+                section_title: "Phần " + (i + 1),
                 is_title_chunk: false,
                 keywords: [],
                 chunk_length: chunks[i].length
-            });
+            };
             
             const embeddingStr = `[${embeddings[i].join(",")}]`;
             
             await client.query(insertQuery, [
-                pdfId, 
+                fileId, 
                 chunks[i], 
                 embeddingStr,
                 chunkMetadata.chunk_index,
@@ -115,7 +115,7 @@ exports.savePDFChunks = async (pdfId, chunks, embeddings, metadata = []) => {
         }
         
         await client.query('COMMIT');
-        console.log(`✅ Đã lưu ${chunks.length} đoạn văn bản với metadata.`);
+        console.log(`✅ Đã lưu ${chunks.length} đoạn văn bản`);
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("❌ Lỗi khi lưu các đoạn văn bản vào database:", error);
@@ -510,6 +510,226 @@ exports.getPDFsByCategory = async (categoryId, userId, userRoles) => {
 
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách PDF theo category:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+exports.searchSimilarChunks = async (queryEmbedding, roleId, limit = 10, priorityFileIds = []) => {
+    const client = await pool.connect();
+    
+    // Xác định tên cột file_id hoặc pdf_id
+    const fileIdColumn = "pdf_id"; 
+    
+    try {
+        let query, params;
+        
+        // Chuyển đổi embedding từ mảng JavaScript sang định dạng vector PostgreSQL
+        const formattedEmbedding = `[${queryEmbedding.join(',')}]`;
+
+        // Nếu có danh sách file ưu tiên
+        if (priorityFileIds && priorityFileIds.length > 0) {
+            if (roleId) {
+                // Tìm kiếm trong role cụ thể với ưu tiên file được chỉ định
+                query = `
+                    WITH ranked_chunks AS (
+                        SELECT 
+                            pc.id, 
+                            pc.${fileIdColumn} as file_id, 
+                            pc.content, 
+                            pc.chunk_index,
+                            pc.embedding <=> $1 AS similarity,
+                            pc.section_title,
+                            pc.is_title_chunk,
+                            pf.pdf_name, 
+                            pf.file_type,
+                            CASE WHEN pc.${fileIdColumn} = ANY($4) THEN 0 ELSE 1 END as priority
+                        FROM pdf_chunks pc
+                        JOIN pdf_files pf ON pc.${fileIdColumn} = pf.id
+                        WHERE pf.role_id = $2
+                        ORDER BY priority, similarity ASC
+                        LIMIT $3
+                    )
+                    SELECT * FROM ranked_chunks
+                    ORDER BY priority, similarity ASC
+                `;
+                params = [formattedEmbedding, roleId, limit, priorityFileIds];
+            } else {
+                // Tìm kiếm trong tất cả role với ưu tiên file được chỉ định
+                query = `
+                    WITH ranked_chunks AS (
+                        SELECT 
+                            pc.id, 
+                            pc.${fileIdColumn} as file_id, 
+                            pc.content, 
+                            pc.chunk_index,
+                            pc.embedding <=> $1 AS similarity,
+                            pc.section_title,
+                            pc.is_title_chunk,
+                            pf.pdf_name, 
+                            pf.file_type,
+                            CASE WHEN pc.${fileIdColumn} = ANY($3) THEN 0 ELSE 1 END as priority
+                        FROM pdf_chunks pc
+                        JOIN pdf_files pf ON pc.${fileIdColumn} = pf.id
+                        ORDER BY priority, similarity ASC
+                        LIMIT $2
+                    )
+                    SELECT * FROM ranked_chunks
+                    ORDER BY priority, similarity ASC
+                `;
+                params = [formattedEmbedding, limit, priorityFileIds];
+            }
+        } else {
+            // Các trường hợp không có file ưu tiên (giữ nguyên code gốc)
+            if (roleId) {
+                query = `
+                    WITH ranked_chunks AS (
+                        SELECT 
+                            pc.id, 
+                            pc.${fileIdColumn} as file_id, 
+                            pc.content, 
+                            pc.chunk_index,
+                            pc.embedding <=> $1 AS similarity,
+                            pc.section_title,
+                            pc.is_title_chunk,
+                            pf.pdf_name, 
+                            pf.file_type
+                        FROM pdf_chunks pc
+                        JOIN pdf_files pf ON pc.${fileIdColumn} = pf.id
+                        WHERE pf.role_id = $2
+                        ORDER BY similarity ASC
+                        LIMIT $3
+                    )
+                    SELECT * FROM ranked_chunks
+                    ORDER BY similarity ASC
+                `;
+                params = [formattedEmbedding, roleId, limit];
+            } else {
+                query = `
+                    WITH ranked_chunks AS (
+                        SELECT 
+                            pc.id, 
+                            pc.${fileIdColumn} as file_id, 
+                            pc.content, 
+                            pc.chunk_index,
+                            pc.embedding <=> $1 AS similarity,
+                            pc.section_title,
+                            pc.is_title_chunk,
+                            pf.pdf_name, 
+                            pf.file_type
+                        FROM pdf_chunks pc
+                        JOIN pdf_files pf ON pc.${fileIdColumn} = pf.id
+                        ORDER BY similarity ASC
+                        LIMIT $2
+                    )
+                    SELECT * FROM ranked_chunks
+                    ORDER BY similarity ASC
+                `;
+                params = [formattedEmbedding, limit];
+            }
+        }
+        
+        console.log("🔍 Thực hiện truy vấn với cấu trúc bảng thực tế");
+        const result = await client.query(query, params);
+        
+        // Chuyển đổi kết quả để phù hợp với cấu trúc dữ liệu mong đợi
+        const transformedResults = result.rows.map(row => ({
+            id: row.id,
+            file_id: row.file_id,
+            content: row.content,
+            chunk_index: row.chunk_index,
+            similarity: row.similarity,
+            pdf_name: row.pdf_name,
+            file_type: row.file_type,
+            section_title: row.section_title,
+            page_number: null // Không có cột page_number trong schema của bạn
+        }));
+        
+        return transformedResults;
+    } catch (error) {
+        console.error("❌ Lỗi khi tìm kiếm chunks tương tự:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+exports.getFilesInfo = async (fileIds) => {
+    const client = await pool.connect();
+    try {
+        // Kiểm tra các cột trong bảng pdf_files
+        const checkColumns = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'pdf_files'
+        `);
+        
+        const columns = checkColumns.rows.map(row => row.column_name);
+        const hasFullTextLength = columns.includes('full_text_length');
+        
+        const query = `
+            SELECT id, pdf_name, file_type, uploaded_at, uploaded_by
+            ${hasFullTextLength ? ', full_text_length' : ', LENGTH(full_text) as full_text_length'}
+            FROM pdf_files
+            WHERE id = ANY($1)
+        `;
+        
+        const result = await client.query(query, [fileIds]);
+        return result.rows;
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy thông tin file:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+exports.checkDatabaseSchema = async () => {
+    const client = await pool.connect();
+    try {
+        // Kiểm tra cấu trúc bảng pdf_chunks
+        const pdfChunksResult = await client.query(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'pdf_chunks'
+            ORDER BY ordinal_position
+        `);
+        console.log("📊 Cấu trúc bảng pdf_chunks:", pdfChunksResult.rows);
+        
+        // Kiểm tra cấu trúc bảng pdf_files
+        const pdfFilesResult = await client.query(`
+            SELECT column_name, data_type 
+            FROM information_schema.columns 
+            WHERE table_name = 'pdf_files'
+            ORDER BY ordinal_position
+        `);
+        console.log("📊 Cấu trúc bảng pdf_files:", pdfFilesResult.rows);
+        
+        return {
+            pdfChunks: pdfChunksResult.rows,
+            pdfFiles: pdfFilesResult.rows
+        };
+    } catch (error) {
+        console.error("❌ Lỗi khi kiểm tra schema:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
+};
+
+exports.getAllFiles = async () => {
+    const client = await pool.connect();
+    try {
+        const query = `
+            SELECT id, pdf_name, file_type 
+            FROM pdf_files
+        `;
+        
+        const result = await client.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error("❌ Lỗi khi lấy danh sách tất cả file:", error);
         throw error;
     } finally {
         client.release();

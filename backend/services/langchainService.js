@@ -1,15 +1,16 @@
 const { ChatOpenAI } = require("@langchain/openai");
 const { PromptTemplate } = require("@langchain/core/prompts");
-const { LLMChain, RetrievalQAChain, ConversationalRetrievalQAChain } = require("langchain/chains");
-const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
+const { LLMChain, ConversationalRetrievalQAChain } = require("langchain/chains");
 const { OpenAIEmbeddings } = require("@langchain/openai");
-const { MemoryVectorStore } = require("langchain/vectorstores/memory");
-const { Document } = require("langchain/document");
-const { BufferMemory, ConversationSummaryMemory } = require("langchain/memory");
+const { ConversationSummaryMemory } = require("langchain/memory");
 const { PGVectorStore } = require("@langchain/community/vectorstores/pgvector");
 const { Pool } = require('pg');
 const userModel = require("../models/userModel");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 const llm = new ChatOpenAI({
   openAIApiKey: process.env.OPENAI_API_KEY,
@@ -21,10 +22,6 @@ const llm = new ChatOpenAI({
 const embeddings = new OpenAIEmbeddings({
   openAIApiKey: process.env.OPENAI_API_KEY,
   batchSize: 512, 
-});
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
 });
 
 const conversationMemories = {};
@@ -158,37 +155,41 @@ const createRetrievalChain = async (userId, query, userRoles) => {
     const user = await userModel.getUserById(userId);
     
     const promptTemplate = `
-    Bạn là trợ lý AI thông minh, được tạo ra để hỗ trợ ${user.fullname || 'người dùng'} tìm kiếm và trả lời câu hỏi từ tài liệu.
-    
-    Thông tin người dùng:
-    - Tên: ${user.fullname || 'Chưa cập nhật'}
-    - Vai trò: ${user.roles.join(', ')}
-    
-    Lịch sử hội thoại:
-    {chat_history}
-    
-    Câu hỏi hiện tại: {question}
-    
-    Dưới đây là thông tin từ tài liệu có liên quan:
-    {context}
-    
-    Hướng dẫn trả lời:
-    1. Nếu thông tin đến từ bảng CSV:
-       - Giữ nguyên cấu trúc bảng khi trả lời
-       - Nêu rõ các cột liên quan
-       - Trả lời ngắn gọn, đúng trọng tâm
-    
-    2. Nếu thông tin đến từ PDF:
-       - Tổng hợp thông tin từ nhiều đoạn
-       - Trích dẫn nguồn khi cần
-       - Giữ cấu trúc logic
-    
-    3. Chung:
-       - Trả lời bằng tiếng Việt
-       - Ngắn gọn, đầy đủ và chính xác
-       - Nếu không đủ thông tin, nói rõ "Tôi không tìm thấy đủ thông tin trong tài liệu"
-       - ${user.roles.includes('admin') ? 'Có thể cung cấp thông tin chi tiết hơn.' : 'Giữ câu trả lời phù hợp với vai trò.'}
-    `;
+Bạn là trợ lý AI thông minh, được tạo ra để hỗ trợ ${user.fullname || 'người dùng'} tìm kiếm và trả lời câu hỏi từ tài liệu.
+
+Thông tin người dùng:
+- Tên: ${user.fullname || 'Chưa cập nhật'}
+- Vai trò: ${user.roles.join(', ')}
+
+Lịch sử hội thoại:
+{chat_history}
+
+Câu hỏi hiện tại: {question}
+
+Dưới đây là thông tin từ NHIỀU tài liệu có liên quan:
+{context}
+
+Hướng dẫn trả lời:
+1. TỔNG HỢP thông tin từ TẤT CẢ các tài liệu liên quan, KHÔNG chỉ dùng tài liệu đầu tiên.
+2. So sánh thông tin từ các tài liệu khác nhau nếu có mâu thuẫn.
+3. Trích dẫn rõ nguồn tài liệu trong phần trả lời của bạn.
+
+4. Nếu thông tin đến từ bảng CSV:
+   - Giữ nguyên cấu trúc bảng khi trả lời
+   - Nêu rõ các cột liên quan
+   - Trả lời ngắn gọn, đúng trọng tâm
+
+5. Nếu thông tin đến từ PDF:
+   - Tổng hợp thông tin từ nhiều đoạn
+   - Trích dẫn nguồn khi cần bằng [Tên tài liệu]
+   - Giữ cấu trúc logic
+
+6. Chung:
+   - Trả lời bằng tiếng Việt
+   - Ngắn gọn, đầy đủ và chính xác
+   - Nếu không đủ thông tin, nói rõ "Tôi không tìm thấy đủ thông tin trong tài liệu"
+   - ${user.roles.includes('admin') ? 'Có thể cung cấp thông tin chi tiết hơn.' : 'Giữ câu trả lời phù hợp với vai trò.'}
+`;
     
     const chain = ConversationalRetrievalQAChain.fromLLM(
       llm,
@@ -220,45 +221,95 @@ const createRetrievalChain = async (userId, query, userRoles) => {
 
 const queryRetrievalChain = async (userId, query, userRoles) => {
   try {
-    const chain = await createRetrievalChain(userId, query, userRoles);
-    
-    const result = await chain.call({
-      question: query,
-    });
-
-    let formattedResult = result.text;
-    
-    if (result.sourceDocuments && result.sourceDocuments.length > 0) {
-      formattedResult += "\n\n**Nguồn tài liệu:**\n";
-      
-      const uniqueSources = {};
-      
-      result.sourceDocuments.forEach((doc) => {
-        const pdfName = doc.metadata?.pdf_name || "Không xác định";
-        const pdfId = doc.metadata?.pdf_id;
-        const fileType = doc.metadata?.file_type;
-        
-        if (!uniqueSources[pdfId]) {
-          uniqueSources[pdfId] = {
-            name: pdfName,
-            type: fileType,
-            count: 1,
-            relevance: doc.metadata?.similarity || 0
-          };
-        } else {
-          uniqueSources[pdfId].count++;
-        }
-      });
-      
-      const sortedSources = Object.entries(uniqueSources)
-        .sort(([,a], [,b]) => b.relevance - a.relevance);
-      
-      sortedSources.forEach(([pdfId, source], index) => {
-        formattedResult += `\n${index + 1}. ${source.name} (${source.type?.toUpperCase() || 'PDF'}) - ${source.count} đoạn liên quan`;
-      });
+    const vectorStore = await createPGVectorStore(userId, userRoles);
+    if (!vectorStore) {
+      throw new Error("Không thể tạo vectorStore cho người dùng này");
     }
     
+    const retriever = vectorStore.asRetriever({
+      searchType: "similarity_hybrid",
+      k: 10,
+      searchKwargs: {
+        fetchK: 25,
+        lambda_mult: 0.5,
+        score_threshold: 0.65,
+      }
+    });
+    
+    const docs = await retriever.getRelevantDocuments(query);
+    
+    if (!docs || docs.length === 0) {
+      return "Tôi không tìm thấy đủ thông tin trong tài liệu để trả lời câu hỏi này.";
+    }
+    
+    let context = "Dưới đây là thông tin từ các tài liệu liên quan:\n\n";
+    const uniqueSources = {};
+    
+    docs.forEach((doc, index) => {
+      const pdfName = doc.metadata?.pdf_name || "Không xác định";
+      const pdfId = doc.metadata?.pdf_id || index;
+      const fileType = doc.metadata?.file_type || "pdf";
+      const pageNumber = doc.metadata?.page_number;
+      const pageInfo = pageNumber ? ` (Trang ${pageNumber})` : '';
+      
+      context += `[Tài liệu: ${pdfName}${pageInfo}]\n${doc.pageContent}\n\n`;
+      
+      const sourceKey = `${pdfId}-${pdfName}`;
+      if (!uniqueSources[sourceKey]) {
+        uniqueSources[sourceKey] = {
+          name: pdfName,
+          type: fileType,
+          pages: new Set(pageNumber ? [pageNumber] : []),
+          count: 1
+        };
+      } else {
+        if (pageNumber) uniqueSources[sourceKey].pages.add(pageNumber);
+        uniqueSources[sourceKey].count++;
+      }
+    });
+    
+    const geminiPrompt = `
+Dựa trên thông tin từ NHIỀU tài liệu dưới đây, hãy trả lời câu hỏi: "${query}"
+
+${context}
+
+Hướng dẫn trả lời:
+1. TỔNG HỢP thông tin từ TẤT CẢ các tài liệu liên quan, KHÔNG chỉ dùng tài liệu đầu tiên.
+2. So sánh thông tin từ các tài liệu khác nhau nếu có mâu thuẫn.
+3. Trích dẫn rõ nguồn tài liệu khi cần thiết bằng cách ghi rõ [Tên tài liệu].
+4. Trả lời câu hỏi một cách ngắn gọn, chính xác và đầy đủ dựa trên thông tin được cung cấp.
+5. Nếu thông tin trong tài liệu không đủ để trả lời, hãy nói rõ điều đó.`;
+
+    const geminiResponse = await geminiModel.generateContent({
+      contents: [{ role: "user", parts: [{ text: geminiPrompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 4000,
+      }
+    });
+    
+    let formattedResult = "";
+    
+    if (geminiResponse && geminiResponse.response) {
+      formattedResult = geminiResponse.response.text();
+    } else {
+      formattedResult = "Tôi không thể phân tích thông tin để trả lời câu hỏi này.";
+    }
+    
+    formattedResult += "\n\n**Nguồn tài liệu:**\n";
+    
+    Object.entries(uniqueSources).forEach(([, source], index) => {
+      const pagesInfo = source.pages.size > 0 
+        ? ` - Trang: ${Array.from(source.pages).sort((a, b) => a - b).join(', ')}` 
+        : '';
+      
+      formattedResult += `\n${index + 1}. ${source.name} (${source.type?.toUpperCase() || 'PDF'})${pagesInfo} - ${source.count} đoạn liên quan`;
+    });
+    
     return formattedResult;
+    
   } catch (error) {
     console.error("❌ Lỗi khi truy vấn retrieval chain:", error);
     throw error;

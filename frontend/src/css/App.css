@@ -8,10 +8,6 @@
 
 body {
   background-color: #f8f9fa;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
 }
 
 .app-container {
@@ -47,24 +43,11 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.3s;
+  z-index: 9998; /* Z-index thấp hơn chatbot */
 }
 
 .chatbot-toggle-btn:hover {
   background-color: #0056b3;
-}
-
-.react-chatbot-kit-chat-container {
-  position: fixed;
-  bottom: 80px;
-  right: 20px;
-  width: 400px;
-  height: 80vh;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
 }
 
 .close-btn {
@@ -81,69 +64,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 10000;
 }
 
 .close-btn:hover {
   background: darkred;
-}
-
-.react-chatbot-kit-chat-message-container {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-  background: #eef1f7;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  scroll-behavior: smooth;
-  height: calc(150% - 60px);
-  max-height: 70vh;
-}
-
-.react-chatbot-kit-chat-input-container {
-  display: flex;
-  padding: 10px;
-  background: white;
-  border-top: 1px solid #ddd;
-  align-items: center;
-  width: 100%;
-}
-
-.react-chatbot-kit-chat-input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  width: 100%;
-}
-
-.react-chatbot-kit-chat-btn-send {
-  background: #28a745;
-  color: white;
-  padding: 10px;
-  margin-left: 5px;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-.react-chatbot-kit-chat-btn-send:hover {
-  background: #218838;
-}
-
-.react-chatbot-kit-chat-bot-message {
-  padding: 8px 12px;
-  margin: 5px 0;
-  border-radius: 5px;
-  max-width: 80%;
-  background: #e9ecef;
-  color: black;
-  align-self: flex-start;
-}
-
-.react-chatbot-kit-chat-user-message {
-  background: #007bff;
-  color: white;
-  align-self: flex-end;
 }
 
 .file-list-container {
@@ -214,7 +139,6 @@ body {
   margin: 5px;
 }
 
-
 .header-navbar {
   position: fixed;
   top: 0;
@@ -281,4 +205,77 @@ body {
 .header-navbar .btn-outline-primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Chatbot Container (Quan trọng) */
+.chatbot-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  height: 600px;
+  max-height: 90vh;
+  overflow: hidden;
+  z-index: 9999;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+/* CÁC STYLE QUAN TRỌNG ĐỂ FIX SCROLL TRONG CHATBOT */
+/* ĐẢM BẢO KHÔNG CÓ STYLE NÀO LÀM OVERRIDE overflow-y: auto trong .react-chatbot-kit-chat-message-container */
+
+/* Thêm styles mới để khắc phục vấn đề scrolling */
+.chatbot-container .react-chatbot-kit-chat-message-container {
+  flex: 1 !important;
+  overflow-y: auto !important; /* ĐẢM BẢO CÓ THỂ SCROLL */
+  height: auto !important;
+  max-height: 450px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  position: relative !important;
+  scroll-behavior: smooth !important;
+}
+
+/* Fix để tránh hiện tượng chồng chéo giữa các tin nhắn */
+.chatbot-container .react-chatbot-kit-chat-bot-message-container {
+  position: relative !important;
+  width: 100% !important;
+  display: flex !important;
+  margin-bottom: 15px !important;
+  overflow: visible !important; /* QUAN TRỌNG */
+}
+
+/* Đảm bảo tin nhắn người dùng hiển thị đúng */
+.chatbot-container .react-chatbot-kit-user-chat-message-container {
+  position: relative !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  margin-bottom: 15px !important;
+  overflow: visible !important; /* QUAN TRỌNG */
+}
+
+/* ĐẢM BẢO SCROLL HELPER HOẠT ĐỘNG */
+#chatbot-scroll-helper {
+  position: absolute;
+  bottom: 0;
+  height: 1px;
+  width: 1px;
+  opacity: 0;
+}
+
+/* ĐẢM BẢO CONTAINER CHAT HIỂN THỊ ĐÚNG */
+.chatbot-container .react-chatbot-kit-chat-inner-container {
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+/* Đảm bảo không có overflow: hidden ở bất kỳ container nào */
+.chatbot-container .react-chatbot-kit-chat-bot-message,
+.chatbot-container .react-chatbot-kit-user-chat-message {
+  overflow: visible !important;
+  word-break: break-word !important;
 }

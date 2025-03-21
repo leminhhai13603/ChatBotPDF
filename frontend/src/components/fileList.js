@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, memo } from "react";
 import axios from "axios";
+import { Modal } from "antd";
 import "../css/fileList.css"; 
 import { debounce } from "lodash";
 
@@ -15,7 +16,7 @@ const FileList = ({ refresh }) => {
   const [selectedRole, setSelectedRole] = useState("all");
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false); 
-  const previewRef = useRef(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   // Fetch roles khi component mount
   useEffect(() => {
@@ -120,8 +121,8 @@ const FileList = ({ refresh }) => {
   };
 
   const handleFileClick = (file) => {
-    console.log("Selected file content:", file.full_text);
-    setSelectedFile(selectedFile?.id === file.id ? null : file);
+    setSelectedFile(file);
+    setShowPreviewModal(true);
   };
 
   const paginate = (pageNumber) => {
@@ -195,25 +196,6 @@ const FileList = ({ refresh }) => {
   return (
     <div className="file-list-page">
       <div className="file-layout">
-        <div ref={previewRef} className="file-preview">
-          {selectedFile && (
-            <>
-              <h3>{selectedFile.pdf_name}</h3>
-              <div className="file-info">
-                {!isAnonymousCategory(selectedFile.group_name) && (
-                  <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
-                )}
-                <p><strong>Thời gian:</strong> {new Date(selectedFile.uploaded_at).toLocaleString('vi-VN')}</p>
-                <p><strong>Loại file:</strong> {selectedFile.file_type?.toUpperCase() || 'PDF'}</p>
-              </div>
-              <FileContent 
-                content={selectedFile.full_text}
-                fileType={selectedFile.file_type} 
-              />
-            </>
-          )}
-        </div>
-
         <div className="file-list-container">
           <div className="filters">
             <select 
@@ -310,6 +292,29 @@ const FileList = ({ refresh }) => {
           )}
         </div>
       </div>
+
+      {showPreviewModal && selectedFile && (
+        <Modal
+          visible={showPreviewModal}
+          onCancel={() => setShowPreviewModal(false)}
+          footer={null}
+          width="90%"
+          style={{ top: 20 }}
+        >
+          <h3>{selectedFile.pdf_name}</h3>
+          <div className="file-info">
+            {!isAnonymousCategory(selectedFile.group_name) && (
+              <p><strong>Người tải lên:</strong> {selectedFile.uploader_name || 'Không xác định'}</p>
+            )}
+            <p><strong>Thời gian:</strong> {new Date(selectedFile.uploaded_at).toLocaleString('vi-VN')}</p>
+            <p><strong>Loại file:</strong> {selectedFile.file_type?.toUpperCase() || 'PDF'}</p>
+          </div>
+          <FileContent 
+            content={selectedFile.full_text}
+            fileType={selectedFile.file_type} 
+          />
+        </Modal>
+      )}
 
       {showDeleteModal && (
         <div className="delete-modal">

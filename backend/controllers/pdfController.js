@@ -6,18 +6,7 @@ const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const pdfParse = require("pdf-parse");
 const pool = require("../config/db");
 const chatModel = require("../models/chatModel");
-const fs = require('fs').promises;
-const csv = require('csv-parse/sync');
-
-// Hàm dọn dẹp file tạm
-const cleanupTempFile = async (filePath) => {
-    try {
-        await fs.unlink(filePath);
-        console.log("✅ Đã xóa file tạm:", filePath);
-    } catch (error) {
-        console.error("⚠️ Lỗi khi xóa file tạm:", error);
-    }
-};
+const geminiService = require("../services/geminiService");
 
 // Thêm các hàm helper để tái sử dụng
 exports.processFile = async (buffer, fileType) => {
@@ -153,67 +142,124 @@ exports.deletePDF = async (req, res) => {
 
 exports.searchPDF = async (req, res) => {
     try {
-        const { query } = req.body;
-        if (!query) {
-            return res.status(400).json({ error: "Không có truy vấn tìm kiếm" });
+        const { query, roleId } = req.body;
+        
+        if (!query || query.trim() === '') {
+            return res.status(400).json({ error: "Câu hỏi không được để trống!" });
         }
 
-        const userId = req.user.id;
-        const userRoles = req.user.roles || [];
-
-        console.log(`🔎 Đang tìm kiếm: "${query}" cho user ${userId}`);
+        // Lấy danh sách tất cả các file để tìm file được đề cập trong câu hỏi
+        const allFiles = await pdfModel.getAllFiles();
+        let priorityFileIds = [];
+        
+        // Kiểm tra xem câu hỏi có nhắc đến tên file nào không
+        if (allFiles && allFiles.length > 0) {
+            const queryLower = query.toLowerCase();
+            const mentionedFiles = allFiles.filter(file => 
+                queryLower.includes(file.pdf_name.toLowerCase())
+            );
+            
+            if (mentionedFiles.length > 0) {
+                priorityFileIds = mentionedFiles.map(file => file.id);
+                console.log(`🔍 Đã tìm thấy file được nhắc đến trong câu hỏi: ${mentionedFiles.map(f => f.pdf_name).join(', ')}`);
+            }
+        }
 
         // Tạo embedding cho query
-        const queryEmbedding = await groqService.createEmbedding(query);
+        const embedding = await groqService.createEmbedding(query);
         
-        // Tìm kiếm trong database với phân quyền
-        const searchResults = await pdfModel.getVectorSearchResultWithRoles(queryEmbedding, userId, userRoles);
-        
-        if (searchResults) {
-            console.log("✅ Tìm thấy kết quả trong database");
-            
-            // Tạo prompt thông minh hơn với context từ nhiều tài liệu
-            const prompt = `
-            Dựa vào các đoạn văn bản sau đây từ ${searchResults.length} tài liệu, hãy trả lời câu hỏi: "${query}"
+        // Tìm kiếm các chunks phù hợp nhất (ưu tiên file được nhắc đến nếu có)
+        const relevantChunks = await pdfModel.searchSimilarChunks(embedding, roleId, 10, priorityFileIds);
 
-            ${searchResults.map(doc => `
-            📄 Từ tài liệu "${doc.pdf_name}":
-            ${doc.chunks.map(chunk => `
-            ${chunk.section_title ? `[${chunk.section_title}]` : ''}
-            ${chunk.content}
-            `).join('\n')}
-            `).join('\n\n')}
-            
-            Trả lời bằng tiếng Việt, ngắn gọn, đầy đủ và chính xác. 
-            Nếu thông tin từ nhiều tài liệu khác nhau, hãy tổng hợp và nêu rõ nguồn.
-            Nếu không có thông tin liên quan, hãy nói "Tôi không tìm thấy thông tin liên quan trong tài liệu."
-            `;
-            
-            const answer = await groqService.askGroq(prompt);
+        if (!relevantChunks || relevantChunks.length === 0) {
+            // Không tìm thấy kết quả phù hợp, sử dụng Gemini trả lời chung
+            const answer = await geminiService.askGemini(query);
             
             return res.json({
-                source: "database",
                 answer: answer,
-                documents: searchResults.map(doc => ({
-                    name: doc.pdf_name,
-                    relevance: doc.chunks[0].similarity
-                }))
+                source: "AI",
+                chunks: []
             });
         }
 
-        // Nếu không tìm thấy, sử dụng AI
-        console.log("⚠️ Không tìm thấy trong database, chuyển sang AI");
-        const answer = await groqService.askGroq(query);
+        // Tìm tất cả file liên quan từ các chunks đã tìm được
+        const fileIds = [...new Set(relevantChunks.map(chunk => chunk.file_id))];
+        const fileInfos = await pdfModel.getFilesInfo(fileIds);
         
-        return res.json({
-            source: "groq",
-            answer: answer
-        });
+        try {
+            // Tạo context từ nhiều file
+            let context = "Dưới đây là thông tin liên quan từ các tài liệu:\n\n";
+            
+            // Thêm thông tin tóm tắt về các file (chỉ dùng cho context, không hiện trong câu trả lời)
+            context += "Các tài liệu liên quan:\n";
+            fileInfos.forEach(file => {
+                context += `- ${file.pdf_name} (${file.file_type === 'csv' ? 'Dữ liệu bảng' : 'Tài liệu PDF'})\n`;
+            });
+            context += "\n";
+            
+            // Thêm nội dung từ các chunks
+            relevantChunks.forEach((chunk, index) => {
+                const fileInfo = fileInfos.find(f => f.id === chunk.file_id);
+                const sectionInfo = chunk.section_title ? ` [${chunk.section_title}]` : '';
+                // Không thêm thẻ nguồn tài liệu vào nội dung
+                context += `${chunk.content}\n\n`;
+            });
+            
+            // Tạo prompt để gửi cho Gemini
+            const prompt = `Dựa trên thông tin từ NHIỀU tài liệu sau đây, hãy trả lời câu hỏi: "${query}"\n\n${context}
 
+Hãy trả lời câu hỏi một cách ngắn gọn, chính xác và đầy đủ dựa trên thông tin được cung cấp.
+TỔNG HỢP thông tin từ TẤT CẢ các tài liệu liên quan, KHÔNG chỉ dùng tài liệu đầu tiên.
+So sánh thông tin từ các tài liệu khác nhau nếu có mâu thuẫn.
+KHÔNG ĐÁNH DẤU NGUỒN hay trích dẫn tên tài liệu trong câu trả lời.
+Nếu thông tin trong tài liệu không đủ để trả lời, hãy nói rõ điều đó.`;
+
+            const answer = await geminiService.askGemini(prompt);
+            
+            res.json({
+                answer: answer,
+                source: "PDF",
+                files: fileInfos.map(file => ({
+                    id: file.id,
+                    name: file.pdf_name,
+                    type: file.file_type
+                })),
+                chunks: relevantChunks.map(chunk => ({
+                    content: chunk.content.substring(0, 200) + "...",
+                    fileId: chunk.file_id,
+                    fileName: fileInfos.find(f => f.id === chunk.file_id)?.pdf_name || "Unknown",
+                    sectionTitle: chunk.section_title || null 
+                }))
+            });
+        } catch (error) {
+            console.error("❌ Lỗi khi xử lý kết quả:", error);
+            res.status(500).json({ error: "Lỗi khi xử lý kết quả", details: error.message });
+        }
     } catch (error) {
         console.error("❌ Lỗi khi tìm kiếm:", error);
-        res.status(500).json({ error: "Lỗi máy chủ khi tìm kiếm." });
+        res.status(500).json({ error: "Lỗi khi tìm kiếm", details: error.message });
     }
+};
+
+// Hàm định dạng câu trả lời sang văn bản có ký tự xuống dòng thay vì HTML
+const formatResponseText = (text) => {
+    if (!text) return '';
+    
+    // Chuẩn bị text
+    let formatted = text.trim();
+    
+    // Đảm bảo các xuống dòng được giữ nguyên
+    // Không chuyển đổi thành HTML nữa
+    
+    // Tiêu đề đậm
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '$1');
+    
+    // Đảm bảo có đủ dòng trống giữa các đoạn
+    formatted = formatted.replace(/\n\s*\n/g, '\n\n');
+    
+    console.log("📝 Văn bản đã định dạng:", formatted);
+    
+    return formatted;
 };
 
 // Thêm API để lấy lịch sử hội thoại
@@ -608,4 +654,42 @@ const splitTextIntoChunks = async (text) => {
     
     const docs = await splitter.createDocuments([text]);
     return docs.map(doc => doc.pageContent);
+};
+
+// Sửa lại hàm này để trả về HTML rõ ràng hơn
+const formatResponseHTML = (text) => {
+    if (!text) return '';
+    
+    let formatted = text.trim();
+    
+    // Đảm bảo đầu ra có các kí tự xuống dòng rõ ràng
+    formatted = formatted
+        // Xử lý tiêu đề đậm
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        
+        // Xử lý danh sách có số
+        .replace(/(\d+)\.\s+(.*?)(?=\n|$)/g, '<div class="numbered-item"><span class="number">$1.</span> $2</div>')
+        
+        // Xử lý bullet points
+        .replace(/\*\s+(.*?)(?=\n|$)/g, '<div class="bullet-item">• $1</div>')
+        
+        // Xuống dòng rõ ràng
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    
+    // Bọc trong p nếu cần
+    if (!formatted.startsWith('<p>')) {
+        formatted = '<p>' + formatted + '</p>';
+    }
+    
+    // Thêm style trực tiếp để đảm bảo xuống dòng
+    formatted = `
+        <div style="white-space: pre-wrap; line-height: 1.5;">
+            ${formatted}
+        </div>
+    `;
+    
+    console.log("HTML đã định dạng:", formatted);
+    
+    return formatted;
 };

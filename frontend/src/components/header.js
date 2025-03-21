@@ -30,7 +30,28 @@ const Header = ({ onLogout }) => {
         };
     
         fetchUserInfo();
-    }, []);    
+    }, []);
+    
+    // Kiểm tra xem người dùng có quyền xem Project Management không
+    const canAccessProjectManagement = () => {
+        if (!user || !user.roles) return false;
+        
+        // Kiểm tra xem user có role NHÂN SỰ, PM hoặc admin không
+        return user.roles.some(role => 
+            // Thêm admin vào danh sách
+            role === "admin" || role === "ADMIN" ||
+            role === "NHÂN SỰ" || role === "PM" || 
+            role === "NHAN SU" || role === "nhan su" || 
+            role === "nhân sự" || role === "pm" ||
+            // Nếu role là mã số, có thể cần xét tên role
+            (user.rolenames && user.rolenames.some(name => 
+                name === "admin" || name === "ADMIN" ||
+                name === "NHÂN SỰ" || name === "PM" || 
+                name === "NHAN SU" || name === "nhan su" || 
+                name === "nhân sự" || name === "pm"
+            ))
+        );
+    };
 
     return (
         <Navbar expand="lg" fixed="top" className="header-navbar">
@@ -54,14 +75,19 @@ const Header = ({ onLogout }) => {
                     >
                         <FaBook /> <span className="ms-1">Không gian chung</span>
                     </Button>
-                    <Button 
-                        variant="light" 
-                        className="me-3" 
-                        onClick={() => navigate("/sheets")}
-                        title="Google Sheets"
-                    >
-                        <TableOutlined /> <span className="ms-1">Google Sheets</span>
-                    </Button>
+                    
+                    {/* Chỉ hiển thị nút Project Management nếu người dùng có quyền */}
+                    {canAccessProjectManagement() && (
+                        <Button 
+                            variant="light" 
+                            className="me-3" 
+                            onClick={() => navigate("/sheets")}
+                            title="Quản lý dự án"
+                        >
+                            <TableOutlined /> <span className="ms-1">Project Management</span>
+                        </Button>
+                    )}
+                    
                     <div className="header-title">Hệ Thống Quản Lý PDF</div>
                 </div>
 

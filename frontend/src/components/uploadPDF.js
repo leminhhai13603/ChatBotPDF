@@ -4,7 +4,7 @@ import "../css/uploadPDF.css";
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
-const UploadPDF = ({ user, onUploadSuccess }) => {
+const UploadPDF = ({ user, onUploadSuccess, onClose }) => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [userRoles, setUserRoles] = useState([]);
@@ -13,7 +13,17 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
 
   useEffect(() => {
     fetchUserRoles();
-  }, []);
+    
+    // Thêm xử lý phím ESC để đóng modal
+    const handleEscKey = (e) => {
+      if (e.keyCode === 27 && onClose) {
+        onClose();
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscKey);
+    return () => window.removeEventListener('keydown', handleEscKey);
+  }, [onClose]);
 
   const fetchUserRoles = async () => {
     try {
@@ -89,6 +99,11 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
       // Reset form
       setFile(null);
       e.target.reset();
+      
+      // Đóng modal sau khi upload thành công
+      if (onClose) {
+        setTimeout(() => onClose(), 1000);
+      }
     } catch (error) {
       console.error("❌ Lỗi khi upload file:", error);
       setError(
@@ -99,56 +114,80 @@ const UploadPDF = ({ user, onUploadSuccess }) => {
     }
   };
 
+  // Ngăn chặn sự kiện click từ bên trong modal lan ra ngoài
+  const handleModalClick = (e) => {
+    e.stopPropagation();
+  };
+
+  // Hàm xử lý đóng modal
+  const handleClose = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <div className="upload-container">
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label className="form-label">📁 Chọn file PDF hoặc CSV:</label>
-          <input
-            type="file"
-            className="form-control"
-            accept=".pdf,.csv"
-            onChange={handleFileChange}
-            disabled={uploading}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">🏷️ Chọn danh mục:</label>
-          <select
-            className="form-select"
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            disabled={uploading}
-          >
-            <option value="">-- Chọn danh mục --</option>
-            {userRoles.map((role) => (
-              <option key={role.role_id} value={role.role_id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {error && <div className="alert alert-danger">{error}</div>}
-
-        <button
-          type="submit"
-          className="btn btn-primary"
-          disabled={!file || uploading || !selectedRole}
-        >
-          {uploading ? (
-            <>
-              <span className="spinner-border spinner-border-sm me-2" />
-              Đang upload...
-            </>
-          ) : (
-            <>
-              📤 Upload
-            </>
-          )}
+    <div className="modal-overlay" onClick={handleClose}>
+      <div className="upload-container" onClick={handleModalClick}>
+        {/* Nút đóng modal */}
+        <button className="close-button" onClick={handleClose} aria-label="Đóng">
+          ×
         </button>
-      </form>
+        
+        <h2 className="modal-title">Upload Tài Liệu</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label fw-bold">📁 Chọn file PDF hoặc CSV:</label>
+            <input
+              type="file"
+              className="form-control"
+              accept=".pdf,.csv"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label fw-bold">🏷️ Chọn danh mục:</label>
+            <select
+              className="form-select"
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              disabled={uploading}
+            >
+              <option value="">-- Chọn danh mục --</option>
+              {userRoles.map((role) => (
+                <option key={role.role_id} value={role.role_id}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {error && <div className="alert alert-danger">{error}</div>}
+
+          <button
+            type="submit"
+            className="btn btn-primary w-100"
+            disabled={!file || uploading || !selectedRole}
+          >
+            {uploading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" />
+                Đang upload...
+              </>
+            ) : (
+              <>
+                📤 Upload
+              </>
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

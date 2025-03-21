@@ -1,6 +1,22 @@
 import axios from "axios";
-// import { createChatBotMessage } from "react-chatbot-kit";
+import React from 'react';
+import ReactMarkdown from 'react-markdown';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+// Thêm component này ở đầu file hoặc tạo file riêng
+const MarkdownRenderer = (props) => {
+  return (
+    <div style={{ 
+      textAlign: 'left', 
+      lineHeight: '1.5',
+      fontFamily: 'Arial, sans-serif',
+      color: '#333',
+      padding: '10px'
+    }}>
+      <ReactMarkdown>{props.content}</ReactMarkdown>
+    </div>
+  );
+};
 
 class ActionProvider {
   constructor(createChatBotMessage, setStateFunc) {
@@ -57,7 +73,33 @@ class ActionProvider {
     this.userContext.lastInteraction = Date.now();
   }
 
+  formatMessage(content) {
+    return content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // In đậm
+      .replace(/\n/g, '<br>'); // Xuống dòng
+  }
+
+  convertMarkdownToHTML(text) {
+    // Xử lý định dạng in đậm
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Thêm xuống dòng sau mỗi đánh số
+    text = text.replace(/(\d+\.\s+)/g, '<br>$1');
+    
+    // Thêm xuống dòng sau mỗi dấu hai chấm tiêu đề
+    text = text.replace(/(:\s*)(?=\d+\.)/g, ':<br><br>');
+    
+    // Thêm xuống dòng trước các phần Nguồn
+    text = text.replace(/(Nguồn:)/g, '<br><br>$1');
+    
+    // Thêm xuống dòng sau các chữ đậm
+    text = text.replace(/<\/strong>:/g, '</strong>:<br>');
+    
+    return text;
+  }
+
   async handleUserMessage(query) {
+    // Hiển thị tin nhắn loading
     const loadingMessage = this.createChatBotMessage("⏳ Đang tìm kiếm...");
     this.setState((prev) => ({
       ...prev,
@@ -70,62 +112,93 @@ class ActionProvider {
         throw new Error("Bạn cần đăng nhập để sử dụng tính năng này");
       }
 
-      // Thêm context vào request
+      // Gọi API tìm kiếm với tham số format=markdown để nhận dữ liệu đúng định dạng
       const response = await axios.post(
         `${API_BASE_URL}/pdf/search`, 
         { 
           query,
-          context: {
-            mood: this.userContext.mood,
-            topics: Array.from(this.userContext.topics),
-            importantInfo: Object.fromEntries(this.userContext.importantInfo),
-            recentMessages: this.userContext.chatHistory.slice(-5)
-          }
+          format: "markdown"  // Thêm tham số này nếu backend hỗ trợ
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      // Xóa tin nhắn loading
       this.setState((prev) => ({
         ...prev,
         messages: prev.messages.filter(msg => msg !== loadingMessage),
       }));
 
       const source = response.data.source || "AI";
-      let answer = response.data.answer || "Xin lỗi, tôi không tìm thấy câu trả lời.";
-
-      // Thêm phản hồi theo tâm trạng
-      if (this.userContext.mood === 'happy') {
-        answer = `😊 ${answer}`;
-      } else if (this.userContext.mood === 'sad') {
-        answer = `💪 ${answer}\nHãy cố gắng lên nhé!`;
-      }
-
-      const sourceIcon = source === "database" ? "📄 Database" : "🤖 AI";
       
-      const botMessage = this.createChatBotMessage(answer, { 
-        widget: sourceIcon,
-        loading: false,
-        delay: 500,
+      // Thêm tin nhắn nguồn trước
+      let sourceText = source === "database" ? "📄 Kết quả từ tài liệu" : "🤖 Kết quả từ AI";
+      const sourceMessage = this.createChatBotMessage(sourceText);
+      
+      // Lấy câu trả lời từ API
+      let answer = response.data.answer || "";
+      
+      // Đảm bảo nếu backend chưa format thì cũng hiển thị được
+      // Nếu backend đã trả về markdown hoàn chỉnh thì không cần xử lý thêm
+      
+      // Tạo tin nhắn với widget markdownDisplay
+      const markdownMessage = this.createChatBotMessage(" ", {
+        widget: "markdownDisplay",
+        payload: {
+          content: answer
+        }
       });
-
-      this.updateUserContext(query, answer);
-
+      
       this.setState((prev) => ({
         ...prev,
-        messages: [...prev.messages, botMessage],
+        messages: [...prev.messages, sourceMessage, markdownMessage],
       }));
+      
+      // Thêm mã để đảm bảo CSS được áp dụng đúng cho ReactMarkdown
+      setTimeout(() => {
+        // Áp dụng CSS cho các thẻ Markdown
+        const markdownContainers = document.querySelectorAll('.markdown-display');
+        markdownContainers.forEach(container => {
+          // Áp dụng style cho các thẻ con của markdown
+          const headings = container.querySelectorAll('h1, h2, h3, h4, h5, h6');
+          headings.forEach(heading => {
+            heading.style.margin = '15px 0 10px 0';
+            heading.style.fontWeight = 'bold';
+          });
+          
+          const paragraphs = container.querySelectorAll('p');
+          paragraphs.forEach(p => {
+            p.style.margin = '8px 0';
+          });
+          
+          const lists = container.querySelectorAll('ul, ol');
+          lists.forEach(list => {
+            list.style.paddingLeft = '20px';
+            list.style.margin = '8px 0';
+          });
+          
+          const listItems = container.querySelectorAll('li');
+          listItems.forEach(item => {
+            item.style.margin = '5px 0';
+          });
+        });
+        
+        // Scroll xuống cuối
+        const messageContainer = document.querySelector('.react-chatbot-kit-chat-message-container');
+        if (messageContainer) {
+          messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+      }, 100);
     } catch (error) {
-      console.error("❌ Lỗi khi gọi API tìm kiếm:", error);
-
+      console.error("❌ Lỗi khi gọi API:", error);
+      
+      // Xóa tin nhắn loading
       this.setState((prev) => ({
         ...prev,
         messages: prev.messages.filter(msg => msg !== loadingMessage),
       }));
       
-      const errorMessage = this.createChatBotMessage(
-        error.message || "🚨 Lỗi server, vui lòng thử lại sau."
-      );
-      
+      // Hiển thị tin nhắn lỗi
+      const errorMessage = this.createChatBotMessage(`❌ Lỗi: ${error.message || "Không thể kết nối đến server"}`);
       this.setState((prev) => ({
         ...prev,
         messages: [...prev.messages, errorMessage],
@@ -135,12 +208,7 @@ class ActionProvider {
 
   handleHelpRequest() {
     const helpMessage = this.createChatBotMessage(
-      `Tôi có thể giúp bạn:
-      - Tìm kiếm thông tin trong tài liệu PDF 📄
-      - Trả lời các câu hỏi về nội dung tài liệu 💡
-      - Tóm tắt nội dung quan trọng 📝
-      
-      Hãy hỏi tôi bất kỳ điều gì bạn muốn tìm hiểu!`
+      `Tôi có thể giúp bạn:\n- Tìm kiếm thông tin trong tài liệu PDF 📄\n- Trả lời các câu hỏi về nội dung tài liệu 💡\n- Tóm tắt nội dung quan trọng 📝\n\nHãy hỏi tôi bất kỳ điều gì bạn muốn tìm hiểu!`
     );
     
     this.setState((prev) => ({

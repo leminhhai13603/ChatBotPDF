@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { FaRobot, FaUpload } from "react-icons/fa";
-import { Modal, Button } from "react-bootstrap";
+import { Button } from "react-bootstrap";
 import UploadPDF from "./components/uploadPDF";
 import FileList from "./components/fileList";
 import SearchPDF from "./components/searchPDF";
@@ -58,11 +58,49 @@ const App = () => {
         fetchUser();
     }, []);
 
+    const toggleChatbot = () => {
+        setShowChatbot(!showChatbot);
+    };
+
     const handleLogout = () => {
         localStorage.removeItem("token");
         setIsAuthenticated(false);
         setUser(null);
     };
+
+    useEffect(() => {
+        if (showChatbot) {
+            const fixHTMLDisplay = () => {
+                const botMessages = document.querySelectorAll('.react-chatbot-kit-chat-bot-message');
+                
+                botMessages.forEach(message => {
+                    if (message.innerHTML.includes('&lt;') || message.innerHTML.includes('&gt;')) {
+                        const decodedHTML = message.innerHTML
+                            .replace(/&lt;/g, '<')
+                            .replace(/&gt;/g, '>')
+                            .replace(/&quot;/g, '"')
+                            .replace(/&amp;/g, '&');
+                        
+                        message.innerHTML = decodedHTML;
+                    }
+                });
+            };
+            
+            setTimeout(fixHTMLDisplay, 500);
+            
+            const observer = new MutationObserver(fixHTMLDisplay);
+            const container = document.querySelector('.react-chatbot-kit-chat-message-container');
+            
+            if (container) {
+                observer.observe(container, {
+                    childList: true,
+                    subtree: true
+                });
+                
+                return () => observer.disconnect();
+            }
+        }
+    }, [showChatbot]);
 
     if (isLoading) {
         return <div>Loading...</div>;
@@ -86,15 +124,29 @@ const App = () => {
 
                                         <FileList refresh={refreshFiles} />
 
-                                        <button className="chatbot-toggle-btn" onClick={() => setShowChatbot(!showChatbot)}>
+                                        <button 
+                                            className="chatbot-toggle-btn" 
+                                            onClick={toggleChatbot}
+                                            style={{ zIndex: showChatbot ? 10000 : 9998 }}
+                                        >
                                             <FaRobot size={24} />
                                         </button>
 
                                         {showChatbot && (
                                             <div className="chatbot-container">
-                                                <button className="close-btn" onClick={() => setShowChatbot(false)}>✖</button>
                                                 <SearchPDF />
                                             </div>
+                                        )}
+                                        
+                                        {showUploadModal && (
+                                            <UploadPDF 
+                                                user={user}  
+                                                onUploadSuccess={() => {
+                                                    setRefreshFiles((prev) => prev + 1);
+                                                    setShowUploadModal(false);
+                                                }} 
+                                                onClose={() => setShowUploadModal(false)}
+                                            />
                                         )}
                                     </div>
                                 }
@@ -122,21 +174,6 @@ const App = () => {
                     )}
                 </Routes>
             </div>
-
-            <Modal show={showUploadModal} onHide={() => setShowUploadModal(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>📂 Tải lên PDF</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <UploadPDF 
-                        user={user}  
-                        onUploadSuccess={() => {
-                            setRefreshFiles((prev) => prev + 1);
-                            setShowUploadModal(false);
-                        }} 
-                    />
-                </Modal.Body>
-            </Modal>
         </Router>
     );
 };

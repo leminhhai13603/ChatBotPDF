@@ -1,0 +1,292 @@
+/* CSS cho phần nội dung tin nhắn */
+.result-content {
+  width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Định dạng đoạn văn */
+.result-content p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+
+/* Định dạng tiêu đề */
+.result-content strong:first-of-type {
+  display: block;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+/* Định dạng chữ in đậm */
+.result-content strong {
+  font-weight: bold;
+  color: #000;
+}
+
+/* Định dạng danh sách có thứ tự */
+.result-content ol {
+  list-style-type: decimal;
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+/* Định dạng danh sách không có thứ tự */
+.result-content ul {
+  list-style-type: disc;
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+/* Định dạng mục trong danh sách */
+.result-content li {
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+/* Đảm bảo các mục lồng nhau hiển thị đúng */
+.result-content ol ol,
+.result-content ul ul,
+.result-content ol ul,
+.result-content ul ol {
+  margin: 5px 0 5px 15px;
+}
+
+/* Xử lý khoảng cách giữa các phần tử */
+.result-content br {
+  content: "";
+  display: block;
+  margin: 3px 0;
+}
+
+/* Ẩn thẻ p trống trong tin nhắn có widget */
+.react-chatbot-kit-chat-bot-message p:empty {
+  display: none;
+}
+
+/* Đảm bảo tin nhắn trống có widget không hiển thị */
+.react-chatbot-kit-chat-bot-message:has(p:empty) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+
+/* Định dạng cho phần tiêu đề */
+.result-content strong:first-child {
+  display: block;
+  font-size: 18px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+/* Định dạng cho số thứ tự và tiêu đề mục */
+.result-content br + strong {
+  margin-top: 10px;
+  display: inline-block;
+}
+
+/* Đảm bảo các phần nguồn hiển thị đúng */
+.result-content br + strong:contains("Nguồn") {
+  display: block;
+  margin-top: 15px;
+}
+
+/* Đảm bảo các danh sách hiển thị đúng */
+.result-content ol, .result-content ul {
+  list-style-position: inside; /* Đặt dấu chấm trong để không bị tràn */
+  padding-left: 15px;
+  margin: 10px 0;
+}
+
+.result-content li {
+  margin-bottom: 8px;
+  text-indent: -15px; /* Thụt đầu dòng âm để căn chỉnh nội dung sau dấu chấm */
+  padding-left: 15px; /* Thêm padding để bù đắp text-indent */
+}
+
+/* Đảm bảo các phần tử block hiển thị đúng */
+.result-content p, 
+.result-content div, 
+.result-content h1, 
+.result-content h2, 
+.result-content h3, 
+.result-content h4, 
+.result-content h5, 
+.result-content h6 {
+  margin: 0.5em 0;
+}
+
+/* Ẩn tin nhắn trống (vì nội dung hiển thị trong widget) */
+.react-chatbot-kit-chat-bot-message:has(+ div .result-content) {
+  display: none !important;
+}
+
+/* Đảm bảo rằng tin nhắn nằm trong vùng container */
+.react-chatbot-kit-chat-message-container .result-content * {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Sửa lỗi hiển thị danh sách lồng nhau */
+.result-content ol ol, 
+.result-content ul ul, 
+.result-content ol ul, 
+.result-content ul ol {
+  padding-left: 15px;
+  margin: 5px 0;
+}
+
+/* Làm cho các phần tử trong database-result và ai-result không bị tràn */
+.database-result, .ai-result {
+  padding: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Đảm bảo đúng khoảng cách */
+.database-result .result-content,
+.ai-result .result-content {
+  margin-top: 8px;
+}
+
+/* Khung tin nhắn bot */
+.react-chatbot-kit-chat-bot-message {
+  background: white !important;
+  border: 1px solid #e1e8ed !important;
+  border-radius: 12px !important;
+  color: #1e293b !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+  max-width: 80% !important;
+  padding: 12px !important;
+  margin-bottom: 15px !important;
+  position: relative !important;
+  overflow: visible !important;
+  width: auto !important;
+  align-self: flex-start !important;
+}
+
+/* Khung tin nhắn người dùng */
+.react-chatbot-kit-user-chat-message {
+  background: #3b82f6 !important;
+  border-radius: 12px !important;
+  padding: 10px 15px !important;
+  color: white !important;
+  align-self: flex-end !important;
+  max-width: 80% !important;
+  margin-bottom: 10px !important;
+}
+
+/* Container cho tin nhắn bot */
+.react-chatbot-kit-chat-bot-message-container {
+  display: flex !important;
+  flex-direction: column !important;
+  margin-bottom: 10px !important;
+  width: 100% !important;
+}
+
+/* Container cho tin nhắn người dùng */
+.react-chatbot-kit-user-chat-message-container {
+  display: flex !important;
+  justify-content: flex-end !important;
+  width: 100% !important;
+}
+
+/* Tin nhắn trống (không hiển thị) */
+.empty-message {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+}
+
+/* Container cho kết quả */
+.database-result, .ai-result {
+  background: white !important;
+  border: 1px solid #e1e8ed !important;
+  border-radius: 12px !important;
+  padding: 15px !important;
+  margin-bottom: 15px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+  width: 80% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  word-wrap: break-word !important;
+  margin-left: 0 !important;
+  position: relative !important;
+}
+
+/* Nguồn kết quả */
+.source-badge {
+  font-size: 13px !important;
+  color: #64748b !important;
+  margin-bottom: 8px !important;
+  font-weight: 500 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+/* Nội dung kết quả */
+.result-content {
+  line-height: 1.6 !important;
+  color: #1e293b !important;
+  font-size: 14px !important;
+  text-align: left !important;
+  margin-top: 10px !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  width: 100% !important;
+}
+
+/* Định dạng phần tử trong kết quả */
+.result-content p {
+  margin: 8px 0 !important;
+  line-height: 1.5 !important;
+}
+
+.result-content strong {
+  font-weight: bold !important;
+  color: #000 !important;
+}
+
+.result-content ol {
+  list-style-type: decimal !important;
+  margin: 10px 0 !important;
+  padding-left: 20px !important;
+}
+
+.result-content ul {
+  list-style-type: disc !important;
+  margin: 10px 0 !important;
+  padding-left: 20px !important;
+}
+
+.result-content li {
+  margin-bottom: 6px !important;
+  line-height: 1.4 !important;
+}
+
+.result-content ol ol,
+.result-content ul ul,
+.result-content ol ul,
+.result-content ul ol {
+  margin: 5px 0 5px 15px !important;
+}
+
+.result-content br {
+  content: "" !important;
+  display: block !important;
+  margin: 3px 0 !important;
+}
+
+/* Ẩn thẻ p trống */
+.react-chatbot-kit-chat-bot-message p:empty {
+  display: none !important;
+}
