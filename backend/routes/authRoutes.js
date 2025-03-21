@@ -32,6 +32,7 @@ router.post("/projects", authenticateToken, projectController.createProject);
 router.get("/projects", authenticateToken, projectController.getUserProjects);
 router.delete("/projects/:id", authenticateToken, projectController.deleteProject);
 router.get("/projects/tasks", authenticateToken, timelineController.getTasksByAccount);
+router.put("/projects/:id", authenticateToken, projectController.updateProject);
 
 // ✅ --- Quản lý tài khoản (Chỉ Admin) ---
 router.use(authenticateToken, authorizeAdmin);
