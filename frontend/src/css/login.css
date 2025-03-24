@@ -77,3 +77,12 @@
   padding: 10px;
   border-radius: 6px 0 0 6px;
 }
+
+@media (max-width: 768px) {
+  .login-container {
+    padding: 10px;
+  }
+  .login-form {
+    width: 100%;
+  }
+}

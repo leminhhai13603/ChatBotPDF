@@ -10,19 +10,28 @@ const UploadPDF = ({ user, onUploadSuccess, onClose }) => {
   const [userRoles, setUserRoles] = useState([]);
   const [selectedRole, setSelectedRole] = useState("");
   const [error, setError] = useState("");
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     fetchUserRoles();
     
-    // Thêm xử lý phím ESC để đóng modal
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
     const handleEscKey = (e) => {
       if (e.keyCode === 27 && onClose) {
         onClose();
       }
     };
     
+    window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleEscKey);
-    return () => window.removeEventListener('keydown', handleEscKey);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleEscKey);
+    };
   }, [onClose]);
 
   const fetchUserRoles = async () => {
@@ -132,8 +141,7 @@ const UploadPDF = ({ user, onUploadSuccess, onClose }) => {
 
   return (
     <div className="modal-overlay" onClick={handleClose}>
-      <div className="upload-container" onClick={handleModalClick}>
-        {/* Nút đóng modal */}
+      <div className={`upload-container ${isMobile ? 'mobile' : ''}`} onClick={handleModalClick}>
         <button className="close-button" onClick={handleClose} aria-label="Đóng">
           ×
         </button>

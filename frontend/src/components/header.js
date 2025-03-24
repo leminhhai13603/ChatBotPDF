@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navbar, Container, Dropdown, Button } from "react-bootstrap";
-import { FaUser, FaSignOutAlt, FaCog, FaLock, FaUsersCog, FaHome, FaFolder, FaBook } from "react-icons/fa";
+import { FaUser, FaSignOutAlt, FaCog, FaLock, FaUsersCog, FaHome, FaFolder, FaBook, FaBars } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Link } from "react-router-dom";
@@ -12,7 +12,20 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 const Header = ({ onLogout }) => {
     const [user, setUser] = useState(null);
     const navigate = useNavigate();
-    // const location = useLocation();
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [showMenu, setShowMenu] = useState(false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+            if (window.innerWidth > 768) {
+                setShowMenu(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const fetchUserInfo = async () => {
@@ -53,27 +66,41 @@ const Header = ({ onLogout }) => {
         );
     };
 
+    const toggleMenu = () => {
+        setShowMenu(!showMenu);
+    };
+
     return (
         <Navbar expand="lg" fixed="top" className="header-navbar">
             <Container className="d-flex justify-content-between align-items-center">
                 <div className="d-flex align-items-center">
-                    {(
+                    {isMobile ? (
                         <Button 
                             variant="light" 
-                            className="me-3 home-button" 
-                            onClick={() => navigate("/")}
-                            title="Về trang chủ"
+                            className="me-2 menu-toggle" 
+                            onClick={toggleMenu}
                         >
-                            <FaHome /> <span className="ms-1">Trang chủ</span>
+                            <FaBars />
                         </Button>
-                    )}
+                    ) : null}
+                    <Button 
+                        variant="light" 
+                        className="me-3 home-button" 
+                        onClick={() => navigate("/")}
+                        title="Về trang chủ"
+                    >
+                        <FaHome /> {!isMobile && <span className="ms-1">Trang chủ</span>}
+                    </Button>
+                </div>
+
+                <div className={`header-menu ${showMenu ? 'show' : ''}`}>
                     <Button 
                         variant="light" 
                         className="me-3" 
                         onClick={() => navigate("/blog")}
                         title="Xem tài liệu"
                     >
-                        <FaBook /> <span className="ms-1">Không gian chung</span>
+                        <FaBook /> {!isMobile && <span className="ms-1">Không gian chung</span>}
                     </Button>
                     
                     {/* Chỉ hiển thị nút Project Management nếu người dùng có quyền */}
@@ -84,16 +111,16 @@ const Header = ({ onLogout }) => {
                             onClick={() => navigate("/sheets")}
                             title="Quản lý dự án"
                         >
-                            <TableOutlined /> <span className="ms-1">Project Management</span>
+                            <TableOutlined /> {!isMobile && <span className="ms-1">Project Management</span>}
                         </Button>
                     )}
                     
-                    <div className="header-title">Hệ Thống Quản Lý PDF</div>
+                    <div className="header-title"></div>
                 </div>
 
                 <Dropdown className="header-user">
                     <Dropdown.Toggle variant="light" id="user-dropdown">
-                        <FaUser /> {user ? user.fullname : "Người dùng"}
+                        <FaUser /> {!isMobile && (user ? user.fullname : "Người dùng")}
                     </Dropdown.Toggle>
                     <Dropdown.Menu align="end">
                         <Dropdown.Item onClick={() => navigate("/profile")}>

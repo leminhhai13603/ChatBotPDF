@@ -10,12 +10,31 @@ body {
   background-color: #f8f9fa;
 }
 
+.loading-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: #666;
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
   padding: 20px;
+  padding-top: 60px;
+}
+
+.main-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .upload-container {
@@ -43,11 +62,12 @@ body {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.3s;
-  z-index: 9998; /* Z-index thấp hơn chatbot */
+  z-index: 9998;
 }
 
 .chatbot-toggle-btn:hover {
   background-color: #0056b3;
+  transform: scale(1.05);
 }
 
 .close-btn {
@@ -150,18 +170,6 @@ body {
   padding: 10px 0;
 }
 
-.header-navbar .navbar-brand {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 50px;
-  font-weight: bold;
-  color: white !important;
-}
-
-.app-container {
-  padding-top: 60px; 
-}
 .header-title {
   position: absolute;
   left: 50%;
@@ -171,6 +179,7 @@ body {
   color: white !important;
   text-align: center;
 }
+
 .header-user {
   margin-left: auto;
 }
@@ -189,45 +198,45 @@ body {
   align-items: center;
   gap: 10px;
   margin: 20px auto;
+  display: block;
 }
 
 .toggle-upload-btn:hover {
   background: #0056b3;
+  transform: translateY(-2px);
 }
 
-.header-navbar .btn-outline-primary {
-  padding: 0.375rem 0.75rem;
-  display: flex;
-  align-items: center;
-  transition: all 0.3s ease;
-}
-
-.header-navbar .btn-outline-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-/* Chatbot Container (Quan trọng) */
+/* Chatbot Container */
 .chatbot-container {
   position: fixed;
-  bottom: 20px;
+  bottom: 80px;
   right: 20px;
-  width: 400px;
-  height: 600px;
-  max-height: 90vh;
-  overflow: hidden;
-  z-index: 9999;
+  width: 350px;
+  height: 500px;
+  background-color: white;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
 }
 
-/* CÁC STYLE QUAN TRỌNG ĐỂ FIX SCROLL TRONG CHATBOT */
-/* ĐẢM BẢO KHÔNG CÓ STYLE NÀO LÀM OVERRIDE overflow-y: auto trong .react-chatbot-kit-chat-message-container */
+.chatbot-container.mobile {
+  width: 90%;
+  height: 80%;
+  max-height: 500px;
+  bottom: 70px;
+  right: 5%;
+  left: 5%;
+  margin: 0 auto;
+}
 
-/* Thêm styles mới để khắc phục vấn đề scrolling */
+/* Chatbot Styles */
 .chatbot-container .react-chatbot-kit-chat-message-container {
   flex: 1 !important;
-  overflow-y: auto !important; /* ĐẢM BẢO CÓ THỂ SCROLL */
+  overflow-y: auto !important;
   height: auto !important;
   max-height: 450px !important;
   display: flex !important;
@@ -236,26 +245,23 @@ body {
   scroll-behavior: smooth !important;
 }
 
-/* Fix để tránh hiện tượng chồng chéo giữa các tin nhắn */
 .chatbot-container .react-chatbot-kit-chat-bot-message-container {
   position: relative !important;
   width: 100% !important;
   display: flex !important;
   margin-bottom: 15px !important;
-  overflow: visible !important; /* QUAN TRỌNG */
+  overflow: visible !important;
 }
 
-/* Đảm bảo tin nhắn người dùng hiển thị đúng */
 .chatbot-container .react-chatbot-kit-user-chat-message-container {
   position: relative !important;
   width: 100% !important;
   display: flex !important;
   justify-content: flex-end !important;
   margin-bottom: 15px !important;
-  overflow: visible !important; /* QUAN TRỌNG */
+  overflow: visible !important;
 }
 
-/* ĐẢM BẢO SCROLL HELPER HOẠT ĐỘNG */
 #chatbot-scroll-helper {
   position: absolute;
   bottom: 0;
@@ -264,7 +270,6 @@ body {
   opacity: 0;
 }
 
-/* ĐẢM BẢO CONTAINER CHAT HIỂN THỊ ĐÚNG */
 .chatbot-container .react-chatbot-kit-chat-inner-container {
   height: 100% !important;
   width: 100% !important;
@@ -273,9 +278,124 @@ body {
   overflow: hidden !important;
 }
 
-/* Đảm bảo không có overflow: hidden ở bất kỳ container nào */
 .chatbot-container .react-chatbot-kit-chat-bot-message,
 .chatbot-container .react-chatbot-kit-user-chat-message {
   overflow: visible !important;
   word-break: break-word !important;
+}
+
+/* Responsive Styles */
+@media (max-width: 1200px) {
+  .main-content {
+    padding: 0 15px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    padding: 10px;
+    padding-top: 60px;
+  }
+
+  .main-content {
+    padding: 0 10px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-container {
+    max-width: 100%;
+    padding: 15px;
+  }
+
+  .chatbot-toggle-btn {
+    width: 40px;
+    height: 40px;
+    bottom: 15px;
+    right: 15px;
+  }
+
+  .file-list-table {
+    min-width: 100%;
+  }
+
+  .toggle-upload-btn {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .chatbot-container {
+    width: 90%;
+    height: 70vh;
+    bottom: 70px;
+    right: 5%;
+    left: 5%;
+    margin: 0 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    padding: 5px;
+  }
+
+  .main-content {
+    padding: 0 5px;
+  }
+
+  .chatbot-toggle-btn {
+    width: 35px;
+    height: 35px;
+    bottom: 10px;
+    right: 10px;
+  }
+
+  .toggle-upload-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .header-title {
+    font-size: 14px;
+  }
+
+  .file-list-table th,
+  .file-list-table td {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
+
+/* Loading Animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.loading-screen {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.chatbot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #0275d8;
+  color: white;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+.close-chatbot {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 5px;
 }

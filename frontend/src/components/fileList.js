@@ -17,6 +17,18 @@ const FileList = ({ refresh }) => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false); 
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [showChatbot, setShowChatbot] = useState(false);
+
+  // Thêm useEffect để xử lý responsive
+  useEffect(() => {
+    const handleResize = debounce(() => {
+      setIsMobile(window.innerWidth <= 768);
+    }, 250);
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Fetch roles khi component mount
   useEffect(() => {
@@ -27,6 +39,31 @@ const FileList = ({ refresh }) => {
   useEffect(() => {
     fetchFiles();
   }, [currentPage, selectedRole, refresh]);
+
+  // Thêm useEffect để theo dõi trạng thái chatbot từ localStorage
+  useEffect(() => {
+    const handleChatbotVisibility = () => {
+      const chatbotVisible = localStorage.getItem('showChatbot') === 'true';
+      setShowChatbot(chatbotVisible);
+    };
+    
+    // Kiểm tra ban đầu
+    handleChatbotVisibility();
+    
+    // Thiết lập event listener cho storage changes
+    window.addEventListener('storage', handleChatbotVisibility);
+    
+    // Custom event từ App.js
+    const handleChatbotToggle = (e) => {
+      setShowChatbot(e.detail.visible);
+    };
+    window.addEventListener('chatbotToggle', handleChatbotToggle);
+    
+    return () => {
+      window.removeEventListener('storage', handleChatbotVisibility);
+      window.removeEventListener('chatbotToggle', handleChatbotToggle);
+    };
+  }, []);
 
   const fetchRoles = async () => {
     try {
@@ -133,41 +170,53 @@ const FileList = ({ refresh }) => {
 
   const renderPaginationButtons = () => {
     const buttons = [];
-    const maxVisiblePages = 5;
+    const maxVisiblePages = isMobile ? 3 : 5;
 
-    buttons.push(
-      <button 
-        key={1} 
-        className={currentPage === 1 ? "active" : ""} 
-        onClick={() => paginate(1)}
-      >
-        1
-      </button>
-    );
-
-    if (currentPage > 3) {
-      buttons.push(<span key="left-dots">...</span>);
-    }
-
-    for (let i = Math.max(2, currentPage - 1); 
-         i <= Math.min(totalPages - 1, currentPage + 1); 
-         i++) {
+    if (totalPages <= maxVisiblePages) {
+      for (let i = 1; i <= totalPages; i++) {
+        buttons.push(
+          <button 
+            key={i}
+            className={currentPage === i ? "active" : ""} 
+            onClick={() => paginate(i)}
+          >
+            {i}
+          </button>
+        );
+      }
+    } else {
       buttons.push(
-        <button
-          key={i}
-          className={currentPage === i ? "active" : ""}
-          onClick={() => paginate(i)}
+        <button 
+          key={1} 
+          className={currentPage === 1 ? "active" : ""} 
+          onClick={() => paginate(1)}
         >
-          {i}
+          1
         </button>
       );
-    }
 
-    if (currentPage < totalPages - 2) {
-      buttons.push(<span key="right-dots">...</span>);
-    }
+      if (currentPage > 2) {
+        buttons.push(<span key="left-dots">...</span>);
+      }
 
-    if (totalPages > 1) {
+      for (let i = Math.max(2, currentPage - 1); 
+           i <= Math.min(totalPages - 1, currentPage + 1); 
+           i++) {
+        buttons.push(
+          <button
+            key={i}
+            className={currentPage === i ? "active" : ""}
+            onClick={() => paginate(i)}
+          >
+            {i}
+          </button>
+        );
+      }
+
+      if (currentPage < totalPages - 1) {
+        buttons.push(<span key="right-dots">...</span>);
+      }
+
       buttons.push(
         <button
           key={totalPages}
@@ -194,7 +243,7 @@ const FileList = ({ refresh }) => {
   };
 
   return (
-    <div className="file-list-page">
+    <div className={`file-list-page ${showChatbot ? 'chatbot-open' : ''}`}>
       <div className="file-layout">
         <div className="file-list-container">
           <div className="filters">
@@ -244,7 +293,7 @@ const FileList = ({ refresh }) => {
                           onClick={() => handleFileClick(file)}
                           title={file.pdf_name}
                         >
-                          {truncateFileName(file.pdf_name)}
+                          {truncateFileName(file.pdf_name, isMobile ? 20 : 30)}
                         </span>
                       </td>
                       <td>{file.file_type?.toUpperCase() || 'PDF'}</td>
@@ -278,7 +327,7 @@ const FileList = ({ refresh }) => {
                 onClick={() => paginate(currentPage - 1)} 
                 disabled={currentPage === 1}
               >
-                ⬅ Trước
+                {isMobile ? '⬅' : '⬅ Trước'}
               </button>
               {renderPaginationButtons()}
               <button 
@@ -286,7 +335,7 @@ const FileList = ({ refresh }) => {
                 onClick={() => paginate(currentPage + 1)} 
                 disabled={currentPage === totalPages}
               >
-                Tiếp ➡
+                {isMobile ? '➡' : 'Tiếp ➡'}
               </button>
             </div>
           )}
@@ -298,8 +347,8 @@ const FileList = ({ refresh }) => {
           visible={showPreviewModal}
           onCancel={() => setShowPreviewModal(false)}
           footer={null}
-          width="90%"
-          style={{ top: 20 }}
+          width={isMobile ? "95%" : "90%"}
+          style={{ top: isMobile ? 10 : 20 }}
         >
           <h3>{selectedFile.pdf_name}</h3>
           <div className="file-info">
@@ -317,13 +366,18 @@ const FileList = ({ refresh }) => {
       )}
 
       {showDeleteModal && (
-        <div className="delete-modal">
-          <div className="modal-content">
-            <p>Bạn có chắc chắn muốn xóa file?</p>
-            <button onClick={handleDelete}>Xác nhận</button>
-            <button onClick={() => setShowDeleteModal(false)}>Hủy</button>
-          </div>
-        </div>
+        <Modal
+          visible={showDeleteModal}
+          onCancel={() => setShowDeleteModal(false)}
+          title="Xác nhận xóa"
+          okText="Xóa"
+          cancelText="Hủy"
+          onOk={handleDelete}
+          width={isMobile ? "90%" : "400px"}
+          centered
+        >
+          <p>Bạn có chắc chắn muốn xóa file "{fileToDelete?.pdf_name}"?</p>
+        </Modal>
       )}
     </div>
   );

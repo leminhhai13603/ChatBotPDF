@@ -801,4 +801,13 @@ body {
         flex: 0 0 50% !important;
         max-width: 50% !important;
     }
+}
+
+@media (max-width: 768px) {
+    .blog-container {
+        padding: 10px;
+    }
+    .blog-post {
+        width: 100%;
+    }
 } 

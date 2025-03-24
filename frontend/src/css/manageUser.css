@@ -203,3 +203,12 @@ body, html {
 .role-checkboxes::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+@media (max-width: 768px) {
+  .user-container {
+    padding: 10px;
+  }
+  .user-table {
+    width: 100%;
+  }
+}

@@ -1,18 +1,30 @@
 .file-list-page {
     display: flex;
-    width: 100vw;  
-    height: calc(100vh - 80px);
+    justify-content: center;
+    width: 100%;  
+    min-height: calc(100vh - 80px);
     padding: 20px;
     box-sizing: border-box;
+    transition: margin-right 0.3s ease;
 }
 
+/* Khi chatbot mở, dịch chuyển nội dung sang trái */
+.file-list-page.chatbot-open {
+    margin-right: 370px; /* Độ rộng của chatbot + padding */
+}
 
 .file-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr; 
-    gap: 2rem;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 1200px;
     padding: 1rem;
-    height: calc(100vh - 80px); 
+    margin: 0 auto;
+    transition: width 0.3s ease, max-width 0.3s ease;
+}
+
+.file-list-page.chatbot-open .file-layout {
+    max-width: 900px; /* Giảm kích thước tối đa khi có chatbot */
 }
 
 .file-preview {
@@ -87,9 +99,9 @@
     padding: 1rem;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    height: fit-content; 
+    width: 100%;
+    max-width: 1200px;
 }
-
 
 .search-bar {
     flex: 1;
@@ -460,4 +472,202 @@
 .page-size-selector select {
     padding: 0.25rem;
     border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .file-list-container {
+    padding: 10px;
+  }
+  .file-list-table {
+    width: 100%;
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+  .file-layout {
+    padding: 0.5rem;
+  }
+
+  .file-list-container {
+    max-width: 100%;
+  }
+  
+  .file-list-page.chatbot-open {
+    margin-right: 320px;
+  }
+  
+  .file-list-page.chatbot-open .file-layout {
+    max-width: 750px;
+  }
+}
+
+@media (max-width: 992px) {
+  .file-list-page.chatbot-open {
+    margin-right: 300px;
+  }
+  
+  .file-list-page.chatbot-open .file-layout {
+    max-width: 650px;
+  }
+}
+
+@media (max-width: 768px) {
+  .file-list-page {
+    padding: 10px 5px;
+  }
+
+  .file-layout {
+    padding: 0;
+  }
+
+  .file-list-container {
+    padding: 0.5rem;
+    border-radius: 4px;
+  }
+
+  .filters {
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .category-select {
+    width: 100%;
+  }
+
+  .table-container {
+    overflow-x: auto;
+  }
+
+  .file-list-table {
+    min-width: 600px;
+  }
+
+  .pagination {
+    padding: 10px 0;
+  }
+
+  .pagination button {
+    padding: 5px 8px;
+    font-size: 13px;
+  }
+
+  .modal-content {
+    width: 95%;
+    padding: 15px;
+  }
+
+  .modal-content button {
+    padding: 6px 12px;
+    margin: 0 5px;
+  }
+
+  /* Trên mobile, khi có chatbot, fileList bị ẩn hoàn toàn */
+  .file-list-page.chatbot-open {
+    margin-right: 0;
+    display: none; /* Ẩn hoàn toàn vì trên mobile không đủ không gian */
+  }
+}
+
+@media (max-width: 480px) {
+  .file-list-page {
+    padding: 5px 0;
+  }
+
+  .file-list-container {
+    padding: 0.3rem;
+    border-radius: 3px;
+  }
+
+  .filters {
+    gap: 0.3rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .pagination button {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+
+  .modal-content {
+    padding: 10px;
+  }
+
+  .modal-content button {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+}
+
+/* Đảm bảo modal hiển thị tốt trên mobile */
+@media (max-width: 768px) {
+  .ant-modal {
+    width: 95% !important;
+    margin: 10px auto !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+  }
+
+  .ant-modal-content {
+    padding: 15px !important;
+  }
+
+  .ant-modal-header {
+    padding: 10px 15px !important;
+  }
+
+  .ant-modal-body {
+    padding: 15px !important;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .ant-modal-footer {
+    padding: 10px 15px !important;
+  }
+}
+
+.delete-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.modal-content p {
+    margin-bottom: 20px;
+}
+
+.modal-content button {
+    padding: 8px 16px;
+    margin: 0 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal-content button:first-of-type {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+}
+
+.modal-content button:last-of-type {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
 }

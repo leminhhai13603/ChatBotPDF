@@ -282,4 +282,11 @@
 .user-modal .modal-footer .btn {
   padding: 5px 15px !important;
   font-size: 14px !important;
+}
+
+@media (max-width: 768px) {
+  .modal {
+    width: 90%;
+    padding: 10px;
+  }
 } 

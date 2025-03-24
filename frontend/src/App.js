@@ -29,6 +29,16 @@ const App = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [showUploadModal, setShowUploadModal] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= 768);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -60,7 +70,14 @@ const App = () => {
     }, []);
 
     const toggleChatbot = () => {
-        setShowChatbot(!showChatbot);
+        const newState = !showChatbot;
+        setShowChatbot(newState);
+        localStorage.setItem('showChatbot', newState);
+        
+        // Dispatch custom event để FileList biết
+        window.dispatchEvent(new CustomEvent('chatbotToggle', { 
+            detail: { visible: newState } 
+        }));
     };
 
     const handleLogout = () => {
@@ -103,8 +120,21 @@ const App = () => {
         }
     }, [showChatbot]);
 
+    // Đóng chatbot khi nhấn ESC
+    useEffect(() => {
+        const handleEsc = (event) => {
+            if (event.keyCode === 27) {
+                setShowChatbot(false);
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => {
+            window.removeEventListener('keydown', handleEsc);
+        };
+    }, []);
+
     if (isLoading) {
-        return <div>Loading...</div>;
+        return <div className="loading-screen">Loading...</div>;
     }
 
     return (
@@ -118,9 +148,13 @@ const App = () => {
                             <Route
                                 path="/"
                                 element={
-                                    <div>
-                                        <Button className="toggle-upload-btn" onClick={() => setShowUploadModal(true)}>
-                                            <FaUpload size={20} /> Tải lên PDF
+                                    <div className="main-content">
+                                        <Button 
+                                            className="toggle-upload-btn" 
+                                            onClick={() => setShowUploadModal(true)}
+                                        >
+                                            <FaUpload size={isMobile ? 16 : 20} /> 
+                                            {!isMobile && "Tải lên PDF"}
                                         </Button>
 
                                         <FileList refresh={refreshFiles} />
@@ -130,11 +164,20 @@ const App = () => {
                                             onClick={toggleChatbot}
                                             style={{ zIndex: showChatbot ? 10000 : 9998 }}
                                         >
-                                            <FaRobot size={24} />
+                                            <FaRobot size={isMobile ? 20 : 24} />
                                         </button>
 
                                         {showChatbot && (
-                                            <div className="chatbot-container">
+                                            <div className={`chatbot-container ${isMobile ? 'mobile' : ''}`}>
+                                                <div className="chatbot-header">
+                                                    <span>Chat với AI</span>
+                                                    <button 
+                                                        className="close-chatbot" 
+                                                        onClick={() => setShowChatbot(false)}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
                                                 <SearchPDF />
                                             </div>
                                         )}

@@ -649,4 +649,11 @@ button.close {
 .react-chatbot-kit-chat-message-container {
   overflow-y: auto !important;
   scroll-behavior: smooth !important;
+}
+
+@media (max-width: 768px) {
+  .chatbot-container {
+    width: 100%;
+    height: 80vh;
+  }
 } 

@@ -270,3 +270,158 @@
     min-height: calc(100% - 3.5rem);
   }
 }
+
+@media (max-width: 768px) {
+  .upload-container {
+    width: 95%;
+    max-width: none;
+    margin: 10px;
+    padding: 15px;
+  }
+
+  .upload-container.mobile {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-size: 16px;
+    margin-bottom: 10px;
+    padding-right: 25px;
+  }
+
+  .form-label {
+    font-size: 14px;
+  }
+
+  .form-control,
+  .form-select {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+
+  .btn-primary {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .close-button {
+    width: 25px;
+    height: 25px;
+    font-size: 20px;
+    top: 5px;
+    right: 5px;
+  }
+
+  .alert {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .spinner-border {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .upload-container {
+    width: 100%;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .modal-title {
+    font-size: 15px;
+  }
+
+  .form-label {
+    font-size: 13px;
+  }
+
+  .form-control,
+  .form-select {
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  .btn-primary {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .close-button {
+    width: 22px;
+    height: 22px;
+    font-size: 18px;
+  }
+
+  .alert {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
+/* Thêm styles cho header menu mobile */
+@media (max-width: 768px) {
+  .header-menu {
+    position: fixed;
+    top: 60px;
+    left: -100%;
+    width: 100%;
+    height: calc(100vh - 60px);
+    background: white;
+    padding: 20px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .header-menu.show {
+    left: 0;
+  }
+
+  .header-menu .btn {
+    width: 100%;
+    margin-bottom: 10px;
+    text-align: left;
+  }
+
+  .header-title {
+    display: none;
+  }
+
+  .menu-toggle {
+    display: block;
+  }
+
+  .header-user {
+    margin-left: auto;
+  }
+}
+
+/* Tối ưu cho màn hình rất nhỏ */
+@media (max-width: 360px) {
+  .upload-container {
+    padding: 10px;
+  }
+
+  .modal-title {
+    font-size: 14px;
+  }
+
+  .form-label {
+    font-size: 12px;
+  }
+
+  .form-control,
+  .form-select {
+    padding: 5px 6px;
+    font-size: 12px;
+  }
+
+  .btn-primary {
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+}
