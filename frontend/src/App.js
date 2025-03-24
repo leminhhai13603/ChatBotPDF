@@ -12,6 +12,7 @@ import ChangePassword from "./pages/changePassword";
 import ManageUsers from "./pages/manageUser";
 import ManageCategories from "./pages/manageCategory";
 import "./css/App.css";
+import './css/modal.css';
 import axios from "axios";
 import BlogList from './pages/BlogList';
 import PrivateRoute from './components/PrivateRoute';

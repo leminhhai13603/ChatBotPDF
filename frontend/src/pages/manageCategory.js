@@ -11,6 +11,8 @@ const ManageCategories = () => {
     const [search, setSearch] = useState("");
     const [filteredCategories, setFilteredCategories] = useState([]);
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState(null);
     const [editMode, setEditMode] = useState(false);
     const [categoryForm, setCategoryForm] = useState({ id: null, name: "", description: "" });
 
@@ -40,20 +42,26 @@ const ManageCategories = () => {
         ));
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa danh mục này không?")) return;
+    const handleConfirmDelete = (id) => {
+        setCategoryToDelete(id);
+        setShowDeleteModal(true);
+    };
+
+    const handleDelete = async () => {
         try {
             const token = localStorage.getItem("token");
-            await axios.delete(`${API_BASE_URL}/categories/${id}`, {
+            await axios.delete(`${API_BASE_URL}/categories/${categoryToDelete}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             fetchCategories();
+            setShowDeleteModal(false);
         } catch (error) {
             if (error.response?.status === 400) {
                 alert("Không thể xóa danh mục đang chứa tài liệu!");
             } else {
                 console.error("Lỗi khi xóa danh mục:", error);
             }
+            setShowDeleteModal(false);
         }
     };
 
@@ -132,10 +140,10 @@ const ManageCategories = () => {
                                     <td>{category.name}</td>
                                     <td>{category.file_count || 0}</td>
                                     <td>
-                                        <Button variant="warning" className="action-btn" onClick={() => handleShowModal(category)}>
+                                        <Button variant="warning" className="action-btn me-2" onClick={() => handleShowModal(category)}>
                                             <FaEdit /> Sửa
                                         </Button>
-                                        <Button variant="danger" className="action-btn" onClick={() => handleDelete(category.id)}>
+                                        <Button variant="danger" className="action-btn" onClick={() => handleConfirmDelete(category.id)}>
                                             <FaTrash /> Xóa
                                         </Button>
                                     </td>
@@ -146,7 +154,14 @@ const ManageCategories = () => {
                 </div>
             </Container>
 
-            <Modal show={showModal} onHide={handleCloseModal}>
+            {/* Modal Thêm/Sửa Danh Mục */}
+            <Modal 
+                show={showModal} 
+                onHide={handleCloseModal}
+                centered
+                backdrop="static"
+                className="category-modal"
+            >
                 <Modal.Header closeButton>
                     <Modal.Title>{editMode ? "Chỉnh sửa danh mục" : "Thêm danh mục"}</Modal.Title>
                 </Modal.Header>
@@ -176,6 +191,26 @@ const ManageCategories = () => {
                 <Modal.Footer>
                     <Button variant="secondary" onClick={handleCloseModal}>Hủy</Button>
                     <Button variant="primary" onClick={handleSaveCategory}>Lưu</Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Modal Xác Nhận Xóa */}
+            <Modal 
+                show={showDeleteModal} 
+                onHide={() => setShowDeleteModal(false)}
+                centered
+                backdrop="static"
+                className="delete-modal"
+            >
+                <Modal.Header closeButton>
+                    <Modal.Title>Xác nhận xóa</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>Bạn có chắc chắn muốn xóa danh mục này không?</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Hủy</Button>
+                    <Button variant="danger" onClick={handleDelete}>Xóa</Button>
                 </Modal.Footer>
             </Modal>
         </div>

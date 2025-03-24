@@ -10,6 +10,11 @@ const ManageUsers = () => {
     const [search, setSearch] = useState(""); 
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [showModal, setShowModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [userToDelete, setUserToDelete] = useState(null);
+    const [userToChangePassword, setUserToChangePassword] = useState(null);
+    const [newPassword, setNewPassword] = useState("");
     const [editMode, setEditMode] = useState(false);
     const [roles, setRoles] = useState([]); 
     const [userForm, setUserForm] = useState({ id: null, username: "", fullname: "", roles: [] });
@@ -50,6 +55,7 @@ const ManageUsers = () => {
             console.error("Lỗi khi tải danh sách roles:", error);
         }
     };
+    
     const getRoleNames = (userRoles) => {
         if (!Array.isArray(userRoles) || userRoles.length === 0) return "";
         if (typeof userRoles[0] === "object") {
@@ -77,18 +83,25 @@ const ManageUsers = () => {
         ));
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản này không?")) return;
+    const handleConfirmDelete = (id) => {
+        setUserToDelete(id);
+        setShowDeleteModal(true);
+    };
+
+    const handleDelete = async () => {
         try {
             const token = localStorage.getItem("token");
-            await axios.delete(`${API_BASE_URL}/auth/users/${id}`, {
+            await axios.delete(`${API_BASE_URL}/auth/users/${userToDelete}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             fetchUsers();
+            setShowDeleteModal(false);
         } catch (error) {
             console.error("Lỗi khi xóa tài khoản:", error);
+            setShowDeleteModal(false);
         }
     };
+    
     const handleShowModal = (user = null) => {
         setEditMode(!!user);
         let rolesArray = [];
@@ -150,17 +163,30 @@ const ManageUsers = () => {
         }
     };    
     
-    const handleResetPassword = async (id) => {
-        const newPassword = prompt("Nhập mật khẩu mới cho tài khoản:");
-        if (!newPassword) return;
+    const handleShowPasswordModal = (id) => {
+        setUserToChangePassword(id);
+        setNewPassword("");
+        setShowPasswordModal(true);
+    };
+
+    const handleResetPassword = async () => {
+        if (!newPassword) {
+            alert("Vui lòng nhập mật khẩu mới!");
+            return;
+        }
+        
         try {
             const token = localStorage.getItem("token");
-            await axios.put(`${API_BASE_URL}/auth/users/${id}/change-password`, { password: newPassword }, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            alert("Mật khẩu đã được đặt lại!");
+            await axios.put(`${API_BASE_URL}/auth/users/${userToChangePassword}/change-password`, 
+                { password: newPassword }, 
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setShowPasswordModal(false);
+            alert("Mật khẩu đã được đặt lại thành công!");
         } catch (error) {
             console.error("Lỗi khi đặt lại mật khẩu:", error);
+            setShowPasswordModal(false);
+            alert("Lỗi khi đặt lại mật khẩu!");
         }
     };
 
@@ -206,13 +232,13 @@ const ManageUsers = () => {
                                     <td>{user.fullname}</td>
                                     <td>{ getRoleNames(user.roles) || "Chưa có quyền" }</td>
                                     <td>
-                                        <Button variant="warning" className="action-btn" onClick={() => handleShowModal(user)}>
+                                        <Button variant="warning" className="action-btn me-2" onClick={() => handleShowModal(user)}>
                                             <FaEdit /> Sửa
                                         </Button>
-                                        <Button variant="info" className="action-btn" onClick={() => handleResetPassword(user.id)}>
+                                        <Button variant="info" className="action-btn me-2" onClick={() => handleShowPasswordModal(user.id)}>
                                             <FaKey /> Mật khẩu
                                         </Button>
-                                        <Button variant="danger" className="action-btn" onClick={() => handleDelete(user.id)}>
+                                        <Button variant="danger" className="action-btn" onClick={() => handleConfirmDelete(user.id)}>
                                             <FaTrash /> Xóa
                                         </Button>
                                     </td>
@@ -223,13 +249,21 @@ const ManageUsers = () => {
                 </div>
             </Container>
 
-            <Modal show={showModal} onHide={handleCloseModal}>
+            {/* Modal Thêm/Sửa Tài Khoản */}
+            <Modal 
+                show={showModal} 
+                onHide={handleCloseModal}
+                centered
+                className="user-modal"
+                backdrop="static"
+                size="sm"
+            >
                 <Modal.Header closeButton>
-                    <Modal.Title>{editMode ? "Chỉnh sửa tài khoản" : "Thêm tài khoản"}</Modal.Title>
+                    <Modal.Title>{editMode ? "Sửa tài khoản" : "Thêm tài khoản"}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form>
-                        <Form.Group className="mb-3">
+                        <Form.Group className="mb-2">
                             <Form.Label>Tên đăng nhập</Form.Label>
                             <Form.Control 
                                 type="text" 
@@ -238,7 +272,7 @@ const ManageUsers = () => {
                                 onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
                             />
                         </Form.Group>
-                        <Form.Group className="mb-3">
+                        <Form.Group className="mb-2">
                             <Form.Label>Họ và tên</Form.Label>
                             <Form.Control 
                                 type="text" 
@@ -249,37 +283,89 @@ const ManageUsers = () => {
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>Quyền</Form.Label>
-                            {roles.length > 0 ? (
-                                roles.map((role) => (
-                                    <Form.Check
-                                        key={role.id}
-                                        type="checkbox"
-                                        id={`role-${role.id}`}
-                                        label={role.name}
-                                        value={role.id}
-                                        checked={userForm.roles.includes(role.id)}
-                                        onChange={(e) => {
-                                            const roleId = Number(e.target.value);
-                                            let updatedRoles = [];
-                                            if (e.target.checked) {
-                                                updatedRoles = [...userForm.roles, roleId];
-                                            } else {
-                                                updatedRoles = userForm.roles.filter((item) => item !== roleId);
-                                            }
-                                            console.log("Cập nhật roles:", updatedRoles);
-                                            setUserForm({ ...userForm, roles: updatedRoles });
-                                        }}
-                                    />
-                                ))
-                            ) : (
-                                <p>Đang tải danh sách quyền...</p>
-                            )}
+                            <div className="role-checkboxes">
+                                {roles.length > 0 ? (
+                                    roles.map((role) => (
+                                        <div className="role-checkbox" key={role.id}>
+                                            <input
+                                                type="checkbox"
+                                                id={`role-${role.id}`}
+                                                value={role.id}
+                                                checked={userForm.roles.includes(role.id)}
+                                                onChange={(e) => {
+                                                    const roleId = Number(e.target.value);
+                                                    let updatedRoles = [];
+                                                    if (e.target.checked) {
+                                                        updatedRoles = [...userForm.roles, roleId];
+                                                    } else {
+                                                        updatedRoles = userForm.roles.filter((item) => item !== roleId);
+                                                    }
+                                                    setUserForm({ ...userForm, roles: updatedRoles });
+                                                }}
+                                            />
+                                            <label htmlFor={`role-${role.id}`}>{role.name}</label>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <p>Đang tải danh sách quyền...</p>
+                                )}
+                            </div>
                         </Form.Group>
                     </Form>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={handleCloseModal}>Hủy</Button>
                     <Button variant="primary" onClick={handleSaveUser}>Lưu</Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Modal Xác Nhận Xóa */}
+            <Modal 
+                show={showDeleteModal} 
+                onHide={() => setShowDeleteModal(false)}
+                centered
+                backdrop="static"
+                className="delete-modal"
+            >
+                <Modal.Header closeButton>
+                    <Modal.Title>Xác nhận xóa</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>Bạn có chắc chắn muốn xóa tài khoản này không?</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Hủy</Button>
+                    <Button variant="danger" onClick={handleDelete}>Xóa</Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* Modal Đổi Mật Khẩu */}
+            <Modal 
+                show={showPasswordModal} 
+                onHide={() => setShowPasswordModal(false)}
+                centered
+                backdrop="static"
+                className="password-modal"
+            >
+                <Modal.Header closeButton>
+                    <Modal.Title>Đặt lại mật khẩu</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Mật khẩu mới</Form.Label>
+                            <Form.Control 
+                                type="password" 
+                                placeholder="Nhập mật khẩu mới" 
+                                value={newPassword} 
+                                onChange={(e) => setNewPassword(e.target.value)}
+                            />
+                        </Form.Group>
+                    </Form>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowPasswordModal(false)}>Hủy</Button>
+                    <Button variant="primary" onClick={handleResetPassword}>Lưu mật khẩu</Button>
                 </Modal.Footer>
             </Modal>
         </div>

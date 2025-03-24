@@ -1,0 +1,285 @@
+/* CSS thống nhất cho tất cả các modal trong ứng dụng */
+
+/* Overlay cho modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1050;
+}
+
+/* Canh giữa tất cả modal */
+.modal-dialog {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100% - 3.5rem);
+  margin: 1.75rem auto;
+  max-width: 500px;
+  width: 100%;
+  position: relative;
+}
+
+.modal-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background-color: #fff;
+  border-radius: 10px !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5) !important;
+  outline: 0;
+  pointer-events: auto;
+  overflow: hidden;
+  border: none !important;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.3) !important;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px !important;
+  border-bottom: 0 !important;
+  background: linear-gradient(135deg, #3498db, #2c3e50) !important;
+  color: white !important;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.modal-title {
+  margin: 0 !important;
+  line-height: 1.5;
+  font-size: 1.3rem !important;
+  font-weight: 600 !important;
+  color: white !important;
+}
+
+.modal-body {
+  position: relative;
+  flex: 1 1 auto;
+  padding: 20px !important;
+  background-color: #f8f9fa !important;
+}
+
+.modal-body label {
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+  color: #333 !important;
+  display: block !important;
+}
+
+.modal-body input[type="text"],
+.modal-body input[type="password"] {
+  display: block !important;
+  width: 100% !important;
+  padding: 10px 15px !important;
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+  color: #495057 !important;
+  background-color: #fff !important;
+  background-clip: padding-box !important;
+  border: 1px solid #ced4da !important;
+  border-radius: 6px !important;
+  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out !important;
+  margin-bottom: 15px !important;
+}
+
+.modal-body input[type="text"]:focus,
+.modal-body input[type="password"]:focus {
+  color: #495057 !important;
+  background-color: #fff !important;
+  border-color: #80bdff !important;
+  outline: 0 !important;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+/* Định dạng lại checkbox */
+.modal-body input[type="checkbox"] {
+  margin-right: 8px !important;
+  width: 18px !important;
+  height: 18px !important;
+  accent-color: #3498db !important;
+}
+
+.modal-body .form-check {
+  margin-bottom: 10px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.modal-footer {
+  padding: 15px 20px !important;
+  background-color: #f8f9fa !important;
+  border-top: 1px solid #dee2e6 !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+}
+
+/* Nút Hủy */
+.modal-footer .btn-secondary {
+  color: #fff !important;
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  padding: 8px 20px !important;
+  border-radius: 5px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s !important;
+}
+
+.modal-footer .btn-secondary:hover {
+  background-color: #5a6268 !important;
+  border-color: #545b62 !important;
+}
+
+/* Nút Lưu */
+.modal-footer .btn-primary {
+  color: #fff !important;
+  background-color: #3498db !important;
+  border-color: #3498db !important;
+  padding: 8px 20px !important;
+  border-radius: 5px !important;
+  font-weight: 500 !important;
+  transition: all 0.2s !important;
+}
+
+.modal-footer .btn-primary:hover {
+  background-color: #2980b9 !important;
+  border-color: #2980b9 !important;
+}
+
+/* Nút đóng */
+.modal-header .btn-close,
+.modal-header .close-button,
+.modal-header .close {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #000;
+  opacity: 0.5;
+  padding: 0;
+  margin: -15px -20px -15px auto;
+  cursor: pointer;
+}
+
+.modal-header .btn-close:hover,
+.modal-header .close-button:hover,
+.modal-header .close:hover {
+  opacity: 0.75;
+}
+
+/* Animation cho modal */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-dialog {
+  animation: fadeIn 0.3s;
+}
+
+/* CSS đặc biệt cho các loại modal */
+/* Modal xóa */
+.delete-modal .modal-header {
+  background-color: #f8d7da;
+}
+
+/* Modal đổi mật khẩu */
+.password-modal .modal-header {
+  background-color: #d1ecf1;
+}
+
+/* Đảm bảo modal centered */
+.modal {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal.fade {
+  transition: opacity 0.3s linear;
+}
+
+.modal.show {
+  opacity: 1;
+  visibility: visible;
+  z-index: 1051;
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .modal-dialog {
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+  }
+}
+
+/* Điều chỉnh chiều cao modal */
+.user-modal .modal-dialog {
+  max-height: 90vh !important;
+  margin: 1rem auto !important;
+}
+
+.user-modal .modal-content {
+  max-height: 80vh !important;
+}
+
+.user-modal .modal-body {
+  padding: 15px !important;
+  max-height: 60vh !important;
+  overflow-y: auto !important;
+}
+
+/* Thu gọn khoảng cách giữa các phần tử */
+.user-modal .form-group {
+  margin-bottom: 10px !important;
+}
+
+.user-modal .modal-body label {
+  margin-bottom: 3px !important;
+  font-size: 14px !important;
+}
+
+.user-modal .modal-body input[type="text"],
+.user-modal .modal-body input[type="password"] {
+  padding: 6px 10px !important;
+  font-size: 14px !important;
+  margin-bottom: 8px !important;
+}
+
+/* Thu gọn khoảng cách trong phần role-checkboxes */
+.user-modal .role-checkboxes {
+  padding: 5px !important;
+  gap: 5px !important;
+  max-height: 150px !important; /* Giới hạn chiều cao phần quyền */
+  overflow-y: auto !important;
+}
+
+.user-modal .role-checkbox {
+  margin-bottom: 0 !important;
+  padding: 2px 0 !important;
+}
+
+/* Thu gọn header và footer */
+.user-modal .modal-header {
+  padding: 10px 15px !important;
+}
+
+.user-modal .modal-footer {
+  padding: 10px 15px !important;
+}
+
+/* Điều chỉnh nút */
+.user-modal .modal-footer .btn {
+  padding: 5px 15px !important;
+  font-size: 14px !important;
+} 

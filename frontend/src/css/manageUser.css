@@ -100,3 +100,106 @@ body, html {
     border-color: #3498db;
     box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
 }
+
+.action-btn {
+    margin-right: 5px;
+}
+
+/* CSS đặc biệt cho modal xóa */
+.delete-modal .modal-header {
+    background-color: #f8d7da;
+}
+
+.delete-modal .modal-footer .btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+/* CSS đặc biệt cho modal đổi mật khẩu */
+.password-modal .modal-header {
+    background-color: #d1ecf1;
+}
+
+.password-modal .modal-footer .btn-primary {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.user-modal .modal-dialog {
+    max-width: 450px;
+}
+
+.role-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    background-color: white;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.role-checkbox {
+    display: flex !important;
+    align-items: center !important;
+    padding: 4px 0 !important;
+    margin: 0 !important;
+}
+
+.role-checkbox input[type="checkbox"] {
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important;
+    -moz-appearance: checkbox !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    margin-left: 0 !important;
+    margin-top: 0 !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.role-checkbox .form-check {
+    padding-left: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.role-checkbox .form-check-input {
+    float: none !important;
+    margin-left: 0 !important;
+}
+
+.role-checkbox .form-check-label {
+    margin-bottom: 0 !important;
+    font-weight: normal !important;
+}
+
+.role-checkbox label {
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 0 !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    font-weight: normal !important;
+}
+
+/* Custom scrollbar cho phần role */
+.role-checkboxes::-webkit-scrollbar {
+    width: 6px;
+}
+
+.role-checkboxes::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.role-checkboxes::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.role-checkboxes::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
