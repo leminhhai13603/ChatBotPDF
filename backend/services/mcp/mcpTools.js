@@ -141,7 +141,7 @@ const registerTools = (server) => {
         } else {
           // Tìm kiếm trong tất cả PDF
           const similarityThreshold = 0.2;
-          const maxResults = 5;
+          const maxResults = 10;
           
           const searchResults = await pdfModel.getVectorSearchResultWithRoles(
             await geminiService.createEmbedding(query),
@@ -321,7 +321,6 @@ const registerPrompts = (server) => {
     }
   );
 
-  // Prompt dịch tài liệu
   server.prompt(
     "translate-pdf",
     { 
@@ -342,9 +341,6 @@ const registerPrompts = (server) => {
   );
 };
 
-/**
- * Tìm kiếm trực tiếp trong database với cách tiếp cận tương tự RAG
- */
 async function searchPDF(query, pdfId = null, userId = null, userRoles = ['admin'], conversationHistory = []) {
     try {
         console.log(`🔍 Tìm kiếm với query: "${query}" ${pdfId ? `trong PDF ID: ${pdfId}` : ''}`);
@@ -370,7 +366,7 @@ async function searchPDF(query, pdfId = null, userId = null, userRoles = ['admin
             const similarChunks = await pdfModel.searchSimilarChunks(
                 queryEmbedding,
                 null,
-                5,
+                10,
                 [pdfId]
             );
             
@@ -391,7 +387,6 @@ async function searchPDF(query, pdfId = null, userId = null, userRoles = ['admin
         } else {
             // Tìm kiếm trong tất cả PDF phù hợp với quyền
             const similarityThreshold = 0.2;
-            const maxResults = 5;
             
             searchResults = await pdfModel.getVectorSearchResultWithRoles(
                 queryEmbedding,
@@ -422,7 +417,7 @@ async function searchPDF(query, pdfId = null, userId = null, userRoles = ['admin
 
         searchResults.forEach(result => {
             sourceInfo += `${sourceCount}. ${result.pdf_name}\n`;
-            context += `### TÀI LIỆU ${sourceCount}: ${result.pdf_name}\n\n`;
+            context += `### TẤT CẢ TÀI LIỆU LIÊN QUAN ${sourceCount}: ${result.pdf_name}\n\n`;
             
             // Sắp xếp các chunk theo độ tương đồng (cao đến thấp)
             const sortedChunks = result.chunks.sort((a, b) => b.similarity - a.similarity);
@@ -540,7 +535,7 @@ async function generateAnswer(prompt) {
                 { role: "user", content: prompt }
             ],
             temperature: 0.3,
-            max_tokens: 4000,
+            max_tokens: 8000,
             top_p: 0.95,
             frequency_penalty: 0.0,
             presence_penalty: 0.0
@@ -550,16 +545,6 @@ async function generateAnswer(prompt) {
     } catch (error) {
         console.error("❌ Lỗi khi tạo câu trả lời:", error);
         return "Đã xảy ra lỗi khi xử lý câu trả lời. Vui lòng thử lại sau.";
-    }
-}
-
-// Thêm hàm mới để sử dụng Gemini cho embedding nếu cần
-async function createEmbeddingWithGemini(text) {
-    try {
-        return await geminiService.createEmbedding(text);
-    } catch (error) {
-        console.error("❌ Lỗi khi tạo embedding với Gemini:", error);
-        return null;
     }
 }
 
