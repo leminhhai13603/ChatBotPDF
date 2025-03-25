@@ -201,19 +201,47 @@
 
 .filters {
     display: flex;
-    gap: 1rem;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1rem;
+    gap: 15px;
 }
 
+/* Định dạng ô tìm kiếm để nằm ở phía trái */
+.search-container {
+    position: relative;
+    flex: 1;
+    max-width: 350px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 8px 12px 8px 35px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    height: 40px;
+}
+
+/* Icon tìm kiếm */
+.search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+/* Định dạng dropdown danh mục ở phía phải */
 .category-select {
-    width: 150px;
-}
-
-.category-select option {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 150px;
+    width: auto;
+    min-width: 150px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    height: 40px;
+    background-color: white;
+    cursor: pointer;
 }
 
 .file-name {
@@ -528,8 +556,12 @@
 
   .filters {
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    align-items: stretch;
+  }
+
+  .search-container {
+    max-width: 100%;
+    margin-bottom: 10px;
   }
 
   .category-select {

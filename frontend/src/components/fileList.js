@@ -19,6 +19,8 @@ const FileList = ({ refresh }) => {
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showChatbot, setShowChatbot] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
   // Thêm useEffect để xử lý responsive
   useEffect(() => {
@@ -35,10 +37,10 @@ const FileList = ({ refresh }) => {
     fetchRoles();
   }, []);
 
-  // Fetch files khi page hoặc role thay đổi
+  // Fetch files khi page, role, search term hoặc refresh thay đổi
   useEffect(() => {
     fetchFiles();
-  }, [currentPage, selectedRole, refresh]);
+  }, [currentPage, selectedRole, refresh, isSearching]);
 
   // Thêm useEffect để theo dõi trạng thái chatbot từ localStorage
   useEffect(() => {
@@ -101,12 +103,13 @@ const FileList = ({ refresh }) => {
       const token = localStorage.getItem("token");
       
       // Log để debug
-      console.log("Fetching page:", currentPage);
+      console.log("Fetching page:", currentPage, "Category:", selectedRole);
       
       const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
         params: {
           page: currentPage,
-          category: selectedRole !== "all" ? selectedRole : undefined
+          category: selectedRole !== "all" ? selectedRole : undefined,
+          search: searchTerm || undefined
         },
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -132,9 +135,26 @@ const FileList = ({ refresh }) => {
     }
   };
 
+  // Thêm hàm xử lý tìm kiếm với debounce
+  const debouncedSearch = useCallback(
+    debounce((term) => {
+      setSearchTerm(term);
+      setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
+      setIsSearching(prev => !prev); // Toggle để kích hoạt useEffect
+    }, 500),
+    []
+  );
+
+  const handleSearchChange = (e) => {
+    debouncedSearch(e.target.value);
+  };
+
   const handleCategoryChange = (e) => {
     setSelectedRole(e.target.value);
     setCurrentPage(1); // Reset về trang 1 khi đổi category
+    
+    // Thêm dòng này để đảm bảo việc fetch lại dữ liệu ngay lập tức
+    setTimeout(() => fetchFiles(), 0);
   };
 
   const handleDelete = async () => {
@@ -247,6 +267,15 @@ const FileList = ({ refresh }) => {
       <div className="file-layout">
         <div className="file-list-container">
           <div className="filters">
+            <div className="search-container">
+              <input
+                type="text"
+                className="search-input"
+                placeholder="🔍 Tìm kiếm theo tên file..."
+                onChange={handleSearchChange}
+              />
+            </div>
+            
             <select 
               className="form-select category-select" 
               value={selectedRole} 

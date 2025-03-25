@@ -136,22 +136,54 @@ const extractKeywordsFromCSV = (chunk) => {
 };
 
 // ✅ Lấy danh sách tất cả file PDF
-exports.getAllPDFs = async (userId, userRoles, page = 1) => {
+exports.getAllPDFs = async (userId, userRoles, page = 1, category = null, search = null) => {
     const client = await pool.connect();
     try {
         const limit = 5; // Cố định 5 file mỗi trang
         const offset = (page - 1) * limit;
         const isAdmin = userRoles.includes('admin');
         
-        let query = `
-            WITH total AS (
-                SELECT COUNT(*) as total_count
-                FROM pdf_files pf
-                WHERE 1=1
-                ${!isAdmin ? `AND pf.group_id IN (
-                    SELECT role_id FROM user_roles WHERE user_id = $1
-                )` : ''}
-            )
+        // Tạo mảng tham số và base query
+        const params = [];
+        let paramIndex = 1;
+        
+        let baseQuery = `
+            FROM pdf_files pf
+            LEFT JOIN users u ON pf.uploaded_by = u.id
+            LEFT JOIN roles r ON pf.group_id = r.id
+            WHERE 1=1
+        `;
+        
+        // Thêm điều kiện lọc theo category (group_id)
+        if (category) {
+            baseQuery += ` AND pf.group_id = $${paramIndex}`;
+            params.push(category);
+            paramIndex++;
+        }
+        
+        // Thêm điều kiện tìm kiếm theo tên file
+        if (search) {
+            baseQuery += ` AND LOWER(pf.pdf_name) LIKE $${paramIndex}`;
+            params.push(`%${search.toLowerCase()}%`);
+            paramIndex++;
+        }
+        
+        // Thêm điều kiện phân quyền nếu không phải admin
+        if (!isAdmin) {
+            baseQuery += ` AND pf.group_id IN (
+                SELECT role_id FROM user_roles WHERE user_id = $${paramIndex}
+            )`;
+            params.push(userId);
+            paramIndex++;
+        }
+        
+        // Đếm tổng số file cho phân trang
+        const countQuery = `SELECT COUNT(*) as total_count ${baseQuery}`;
+        const countResult = await client.query(countQuery, params);
+        const totalCount = parseInt(countResult.rows[0]?.total_count || 0);
+        
+        // Query chính để lấy danh sách file
+        const mainQuery = `
             SELECT 
                 pf.id, 
                 pf.pdf_name, 
@@ -161,35 +193,26 @@ exports.getAllPDFs = async (userId, userRoles, page = 1) => {
                 pf.file_type,
                 u.username as uploader_name,
                 r.name as group_name,
-                t.total_count
-            FROM pdf_files pf
-            LEFT JOIN users u ON pf.uploaded_by = u.id
-            LEFT JOIN roles r ON pf.group_id = r.id
-            CROSS JOIN total t
-            WHERE 1=1
+                ${totalCount} as total_count
+            ${baseQuery}
+            ORDER BY pf.uploaded_at DESC
+            LIMIT ${limit} 
+            OFFSET $${paramIndex}
         `;
-
-        const params = [];
         
-        if (!isAdmin) {
-            query += ` AND pf.group_id IN (
-                SELECT role_id FROM user_roles WHERE user_id = $1
-            )`;
-            params.push(userId);
-        }
-
-        query += ` ORDER BY pf.uploaded_at DESC
-                  LIMIT ${limit} 
-                  OFFSET $${params.length + 1}`;
-        
+        // Thêm tham số offset
         params.push(offset);
-
-        const result = await client.query(query, params);
+        
+        // Debug query và tham số để kiểm tra
+        console.log("🔍 Query:", mainQuery);
+        console.log("🔢 Params:", params);
+        
+        const result = await client.query(mainQuery, params);
         
         return {
             files: result.rows,
-            total: parseInt(result.rows[0]?.total_count || 0),
-            totalPages: Math.ceil((result.rows[0]?.total_count || 0) / limit),
+            total: totalCount,
+            totalPages: Math.ceil(totalCount / limit),
             currentPage: page
         };
     } catch (error) {

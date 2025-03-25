@@ -98,29 +98,28 @@ exports.uploadFile = async (req, res) => {
 
 exports.getAllPDFs = async (req, res) => {
     try {
-        const { page = 1, limit = 5 } = req.query;
+        const page = parseInt(req.query.page) || 1;
+        const category = req.query.category; // Kiểm tra xem có đúng nhận tham số này không
+        const search = req.query.search;
+        
+        console.log("📋 Params:", { page, category, search }); // Debug để xem giá trị thực tế
+        
+        // Lấy thông tin người dùng từ token
         const userId = req.user.id;
-        const userRoles = req.user.roles;
-
-        const result = await pdfModel.getAllPDFs(
-            userId, 
-            userRoles, 
-            parseInt(page), 
-            parseInt(limit)
-        );
-
+        const userRoles = req.user.roles || [];
+        
+        // Gọi model để lấy danh sách file
+        const data = await pdfModel.getAllPDFs(userId, userRoles, page, category, search);
+        
         res.json({
             success: true,
-            files: result.files,
-            total: result.total,
-            currentPage: parseInt(page),
-            totalPages: result.totalPages
+            ...data
         });
     } catch (error) {
         console.error("❌ Lỗi khi lấy danh sách file:", error);
-        res.status(500).json({ 
-            success: false, 
-            error: "Lỗi khi lấy danh sách file" 
+        res.status(500).json({
+            success: false,
+            error: "Lỗi khi lấy danh sách file"
         });
     }
 };
