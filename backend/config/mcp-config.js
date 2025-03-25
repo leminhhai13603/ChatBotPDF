@@ -6,7 +6,7 @@ module.exports = {
   serverPort: process.env.MCP_SERVER_PORT || 8080,
   
   // URL của MCP Server để client kết nối
-  serverUrl: process.env.MCP_SERVER_URL || 'http://localhost:8080',
+  serverUrl: process.env.MCP_SERVER_URL || 'http://14.225.220.142:8080',
   
   // Thông tin cơ bản của server
   serverName: "ChatBotPDF-MCP",

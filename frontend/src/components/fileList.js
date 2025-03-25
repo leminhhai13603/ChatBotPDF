@@ -20,7 +20,6 @@ const FileList = ({ refresh }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [showChatbot, setShowChatbot] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
 
   // Thêm useEffect để xử lý responsive
   useEffect(() => {
@@ -39,8 +38,40 @@ const FileList = ({ refresh }) => {
 
   // Fetch files khi page, role, search term hoặc refresh thay đổi
   useEffect(() => {
-    fetchFiles();
-  }, [currentPage, selectedRole, refresh, isSearching]);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
+        
+        console.log("🔍 Đang fetch với category:", selectedRole);
+        
+        const params = {
+          page: currentPage,
+          ...(selectedRole !== "all" && { category: selectedRole }),
+          ...(searchTerm && { search: searchTerm })
+        };
+
+        console.log("📝 Params gửi đi:", params);
+
+        const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
+          params,
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.data.success) {
+          console.log("✅ Dữ liệu nhận về:", response.data);
+          setFiles(response.data.files);
+          setTotalPages(response.data.totalPages);
+        }
+      } catch (error) {
+        console.error("❌ Lỗi khi tải danh sách:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [currentPage, selectedRole, searchTerm]);
 
   // Thêm useEffect để theo dõi trạng thái chatbot từ localStorage
   useEffect(() => {
@@ -97,64 +128,17 @@ const FileList = ({ refresh }) => {
     }
   };
 
-  const fetchFiles = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      
-      // Log để debug
-      console.log("Fetching page:", currentPage, "Category:", selectedRole);
-      
-      const response = await axios.get(`${API_BASE_URL}/pdf/list`, {
-        params: {
-          page: currentPage,
-          category: selectedRole !== "all" ? selectedRole : undefined,
-          search: searchTerm || undefined
-        },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Log response để debug
-      console.log("API Response:", response.data);
-      
-      if (response.data.success) {
-        setFiles(response.data.files);
-        setTotalPages(response.data.totalPages);
-        
-        // Log để debug
-        console.log({
-          filesCount: response.data.files.length,
-          totalPages: response.data.totalPages,
-          currentPage: response.data.currentPage
-        });
-      }
-    } catch (error) {
-      console.error("❌ Lỗi khi tải danh sách file:", error);
-    } finally {
-      setLoading(false);
-    }
+  const handleCategoryChange = (e) => {
+    console.log("🔄 Thay đổi category:", e.target.value);
+    setSelectedRole(e.target.value);
+    setCurrentPage(1);
   };
-
-  // Thêm hàm xử lý tìm kiếm với debounce
-  const debouncedSearch = useCallback(
-    debounce((term) => {
-      setSearchTerm(term);
-      setCurrentPage(1); // Reset về trang 1 khi tìm kiếm
-      setIsSearching(prev => !prev); // Toggle để kích hoạt useEffect
-    }, 500),
-    []
-  );
 
   const handleSearchChange = (e) => {
-    debouncedSearch(e.target.value);
-  };
-
-  const handleCategoryChange = (e) => {
-    setSelectedRole(e.target.value);
-    setCurrentPage(1); // Reset về trang 1 khi đổi category
-    
-    // Thêm dòng này để đảm bảo việc fetch lại dữ liệu ngay lập tức
-    setTimeout(() => fetchFiles(), 0);
+    const value = e.target.value;
+    console.log("🔍 Tìm kiếm:", value);
+    setSearchTerm(value);
+    setCurrentPage(1);
   };
 
   const handleDelete = async () => {
@@ -170,8 +154,10 @@ const FileList = ({ refresh }) => {
       setFileToDelete(null);
       setShowDeleteModal(false);
       setSelectedFile(null);
-      fetchFiles(); 
-
+      
+      // Fetch lại data sau khi xóa
+      setCurrentPage(1); // Reset về trang 1
+      setSelectedRole(selectedRole); // Trigger useEffect fetch data
     } catch (error) {
       console.error("❌ Lỗi khi xóa file:", error);
     }
@@ -434,7 +420,7 @@ const FileContent = ({ content, fileType }) => {
     content.style.cursor = 'grabbing';
   };
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = useCallback((e) => {
     if (!isDragging) return;
     e.preventDefault();
 
@@ -447,14 +433,14 @@ const FileContent = ({ content, fileType }) => {
     
     content.scrollLeft = scrollLeft - walkX;
     content.scrollTop = scrollTop - walkY;
-  };
+  }, [isDragging, startX, startY, scrollLeft, scrollTop]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     if (contentRef.current) {
       contentRef.current.style.cursor = 'grab';
     }
-  };
+  }, []);
 
   useEffect(() => {
     const content = contentRef.current;
@@ -469,7 +455,7 @@ const FileContent = ({ content, fileType }) => {
         content.removeEventListener('mouseleave', handleMouseUp);
       };
     }
-  }, [isDragging, startX, startY, scrollLeft, scrollTop]);
+  }, [handleMouseMove, handleMouseUp]);
 
   const displayContent = content || 'Không có nội dung';
 
