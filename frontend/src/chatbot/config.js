@@ -116,6 +116,31 @@ const MarkdownDisplay = (props) => {
   );
 };
 
+// Thêm widget mới cho kết quả MCP
+const MCPWidget = (props) => {
+  const relevantMessages = props.messages.filter(msg => msg.widget === "🔍 MCP" && msg.payload);
+  const message = relevantMessages[relevantMessages.length - 1];
+  
+  if (!message || !message.payload) {
+    return null;
+  }
+  
+  const content = message.payload.message || "";
+  
+  return (
+    <div className="mcp-result">
+      <div className="source-badge">
+        <span className="icon">🔍</span>
+        <span className="text">Kết quả từ MCP</span>
+      </div>
+      <div 
+        className="result-content" 
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    </div>
+  );
+};
+
 const config = {
   botName: "PDF Assistant",
   initialMessages: [
@@ -154,6 +179,11 @@ const config = {
     {
       widgetName: "🤖 AI",
       widgetFunc: (props) => <AIWidget {...props} />,
+      mapStateToProps: ["messages"],
+    },
+    {
+      widgetName: "🔍 MCP",
+      widgetFunc: (props) => <MCPWidget {...props} />,
       mapStateToProps: ["messages"],
     },
     {

@@ -143,6 +143,64 @@ ${results.join('\n\n')}`;
             return false;
         }
     }
+
+    async generateWithGemini(prompt, options = {}) {
+        try {
+            // Xử lý options
+            const modelName = options.model || "gemini-2.0-flash";
+            const temperature = options.temperature || 0.7;
+            const maxOutputTokens = options.maxOutputTokens || 2048;
+            const safetySettings = options.safetySettings || [];
+            
+            // Khởi tạo model
+            const model = genAI.getGenerativeModel({
+                model: modelName,
+                generationConfig: {
+                    temperature,
+                    maxOutputTokens,
+                    topK: options.topK || 40,
+                    topP: options.topP || 0.95,
+                },
+                safetySettings
+            });
+            
+            // Tạo system prompt nếu có
+            let messages = [];
+            if (options.systemPrompt) {
+                messages.push({
+                    role: "system", 
+                    parts: [{ text: options.systemPrompt }]
+                });
+            }
+            
+            // Thêm prompt người dùng
+            messages.push({
+                role: "user",
+                parts: [{ text: prompt }]
+            });
+            
+            // Tạo chat
+            const chat = model.startChat({
+                history: options.history || [],
+                generationConfig: {
+                    temperature,
+                    maxOutputTokens,
+                    topK: options.topK || 40,
+                    topP: options.topP || 0.95,
+                },
+                safetySettings
+            });
+            
+            // Gửi tin nhắn
+            const result = await chat.sendMessage(prompt);
+            const response = result.response;
+            
+            return response.text();
+        } catch (error) {
+            console.error("❌ Lỗi khi sử dụng Gemini:", error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new GeminiService(); 

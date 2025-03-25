@@ -1,6 +1,7 @@
 import axios from "axios";
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import mcpService from '../services/mcpService';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 // Thêm component này ở đầu file hoặc tạo file riêng
@@ -112,15 +113,46 @@ class ActionProvider {
         throw new Error("Bạn cần đăng nhập để sử dụng tính năng này");
       }
 
-      // Gọi API tìm kiếm với tham số format=markdown để nhận dữ liệu đúng định dạng
-      const response = await axios.post(
-        `${API_BASE_URL}/pdf/search`, 
-        { 
-          query,
-          format: "markdown"  // Thêm tham số này nếu backend hỗ trợ
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      let answer;
+      let source = "AI";
+      
+      // Thử sử dụng MCP server
+      try {
+        // Kiểm tra xem MCP server có hoạt động không
+        const mcpAvailable = await mcpService.checkHealth();
+        
+        if (mcpAvailable) {
+          console.log("🤖 Đang sử dụng MCP Server để tìm kiếm...");
+          answer = await mcpService.searchPDF(query);
+          source = "MCP";
+        } else {
+          console.log("⚠️ MCP Server không khả dụng, chuyển sang phương pháp tìm kiếm cũ...");
+          // Sử dụng API tìm kiếm cũ nếu MCP không khả dụng
+          const response = await axios.post(
+            `${API_BASE_URL}/pdf/search`, 
+            { 
+              query,
+              format: "markdown"
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          answer = response.data.answer || "";
+          source = response.data.source || "AI";
+        }
+      } catch (mcpError) {
+        console.log("⚠️ Lỗi khi sử dụng MCP Server, chuyển sang phương pháp tìm kiếm cũ...", mcpError);
+        // Sử dụng API tìm kiếm cũ nếu MCP gặp lỗi
+        const response = await axios.post(
+          `${API_BASE_URL}/pdf/search`, 
+          { 
+            query,
+            format: "markdown"
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        answer = response.data.answer || "";
+        source = response.data.source || "AI";
+      }
 
       // Xóa tin nhắn loading
       this.setState((prev) => ({
@@ -128,17 +160,10 @@ class ActionProvider {
         messages: prev.messages.filter(msg => msg !== loadingMessage),
       }));
 
-      const source = response.data.source || "AI";
-      
       // Thêm tin nhắn nguồn trước
-      let sourceText = source === "database" ? "📄 Kết quả từ tài liệu" : "🤖 Kết quả từ AI";
+      let sourceText = source === "database" ? "📄 Kết quả từ tài liệu" : 
+                      source === "MCP" ? "🔍 Kết quả từ MCP" : "🤖 Kết quả từ AI";
       const sourceMessage = this.createChatBotMessage(sourceText);
-      
-      // Lấy câu trả lời từ API
-      let answer = response.data.answer || "";
-      
-      // Đảm bảo nếu backend chưa format thì cũng hiển thị được
-      // Nếu backend đã trả về markdown hoàn chỉnh thì không cần xử lý thêm
       
       // Tạo tin nhắn với widget markdownDisplay
       const markdownMessage = this.createChatBotMessage(" ", {
