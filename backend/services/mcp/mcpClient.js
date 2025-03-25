@@ -10,7 +10,6 @@ class MCPClient {
 
   async connect() {
     try {
-      // Kiểm tra kết nối đến MCP Server
       const response = await axios.get(`${this.mcpUrl}/health`);
       if (response.status === 200) {
         console.log("✅ Đã kết nối thành công đến MCP Server");
@@ -41,7 +40,7 @@ class MCPClient {
         headers: {
           'Content-Type': 'application/json'
         },
-        timeout: 60000 // 60 giây
+        timeout: 60000 
       });
 
       console.log("✅ Nhận phản hồi từ MCP Server");

@@ -5,22 +5,19 @@ const { v4: uuidv4 } = require('uuid');
 
 /**
  * Tạo một instance của MCP Server
- * @returns {McpServer} Instance của MCP Server với đầy đủ resources, tools và prompts
+ * @returns {McpServer} 
  */
 const createServer = () => {
-  // Khởi tạo server với thông tin cấu hình
   const server = new McpServer({
     name: mcpConfig.serverName,
     version: mcpConfig.serverVersion
   });
 
-  // Đăng ký resources - cho phép LLM truy cập dữ liệu
+
   mcpTools.registerResources(server);
-  
-  // Đăng ký tools - cho phép LLM thực hiện hành động
+
   mcpTools.registerTools(server);
   
-  // Đăng ký prompts - cho phép LLM sử dụng mẫu câu
   mcpTools.registerPrompts(server);
 
   console.log(`✅ MCP Server đã được khởi tạo: ${mcpConfig.serverName} v${mcpConfig.serverVersion}`);
