@@ -10,7 +10,7 @@ const openai = new OpenAI({
 
 class GeminiService {
     constructor() {
-        this.model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        this.model = genAI.getGenerativeModel({ model: "gemini-2.5-pro-exp-03-25" });
         
         this.chatConfig = {
             temperature: 0.7,
@@ -147,7 +147,7 @@ ${results.join('\n\n')}`;
     async generateWithGemini(prompt, options = {}) {
         try {
             // Xử lý options
-            const modelName = options.model || "gemini-2.0-flash";
+            const modelName = options.model || "gemini-2.5-pro-exp-03-25";
             const temperature = options.temperature || 0.7;
             const maxOutputTokens = options.maxOutputTokens || 2048;
             const safetySettings = options.safetySettings || [];
